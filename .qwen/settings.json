@@ -1,0 +1,15 @@
+{
+  "permissions": {
+    "allow": [
+      "Skill(extension-creator)",
+      "Read(C:\\Users\\Jereme\\Downloads\\skills\\skills/**)",
+      "Read(C:\\Users\\Jereme\\Downloads\\skills\\skills\\brainstorming/**)",
+      "Read(C:\\Users\\Jereme\\Downloads\\skills\\skills\\git-commit/**)",
+      "Read(C:\\Users\\Jereme\\Downloads\\skills\\skills\\systematic-debugging/**)",
+      "Bash(xcopy *)",
+      "Read(C:\\Users\\Jereme\\.qwen\\skills/**)",
+      "Bash(rmdir *)"
+    ]
+  },
+  "$version": 4
+}
