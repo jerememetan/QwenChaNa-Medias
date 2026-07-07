@@ -1,0 +1,48 @@
+# ---- Python ----
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+*.egg
+*.egg-info/
+dist/
+build/
+eggs/
+*.whl
+pip-log.txt
+pip-delete-this-directory.txt
+
+# ---- Virtual environments ----
+.venv/
+venv/
+ENV/
+
+# ---- IDE ----
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# ---- Environment / secrets ----
+.env
+.env.local
+.env.*.local
+
+# ---- Runtime artifacts ----
+outputs/
+
+# ---- OS ----
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# ---- Testing / coverage ----
+.pytest_cache/
+.coverage
+htmlcov/
+coverage.xml
+
+# ---- Logs ----
+*.log
+logs/
