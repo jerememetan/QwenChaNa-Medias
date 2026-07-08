@@ -131,8 +131,8 @@ Provider-agnostic `LLMService` ABC. Agents call `llm_service.generate(prompt, ag
 
 **RED → GREEN checklist:**
 
-- [ ] All tests pass immediately (models already exist)
-- [ ] If any test fails, models have a bug — fix the model, not the test
+- [x] All tests pass immediately (models already exist)
+- [x] If any test fails, models have a bug — fix the model, not the test — no failures found
 
 ---
 
@@ -414,7 +414,8 @@ def resume_job(job_id: str, agents: list[BaseAgent], storage: StorageBackend) ->
 
 | Layer                           | File                                   | Test Count |
 | ------------------------------- | -------------------------------------- | ---------- |
-| 1. Config                       | `tests/test_backend/test_config.py`    | 4          |
+| 1. Config                       | `tests/test_backend/test_config.py`    | 7          |
+| 1b. LLM Service ABC             | `tests/test_tools/test_llm.py`         | 4          |
 | 2a. Enums                       | `tests/test_models/test_job.py`        | 4          |
 | 2b. JobRecord                   | `tests/test_models/test_job.py`        | 5          |
 | 2c. Agent Schemas               | `tests/test_models/test_schemas.py`    | 11         |
@@ -428,7 +429,7 @@ def resume_job(job_id: str, agents: list[BaseAgent], storage: StorageBackend) ->
 | 8. API Schemas                  | `tests/test_api/test_schemas.py`       | 10         |
 | 9. API Routes                   | `tests/test_api/test_routes.py`        | 14         |
 | 10. App                         | `tests/test_api/test_app.py`           | 6          |
-| **Total**                       |                                        | **108**    |
+| **Total**                       |                                        | **115**    |
 
 ---
 
