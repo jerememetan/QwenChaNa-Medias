@@ -183,11 +183,11 @@ class StorageBackend(ABC):
 
 **RED → GREEN checklist:**
 
-- [ ] All tests fail (storage classes don't exist)
-- [ ] Write `StorageBackend` ABC with `@abstractmethod` decorators
-- [ ] Write `LocalStorage` implementing all methods using `pathlib`
-- [ ] All tests pass
-- [ ] Refactor: ensure path construction is consistent
+- [x] All tests fail (storage classes don't exist)
+- [x] Write `StorageBackend` ABC with `@abstractmethod` decorators
+- [x] Write `LocalStorage` implementing all methods using `pathlib`
+- [x] All tests pass
+- [x] Refactor: path construction extracted into `_artifact_path()` helper — consistent
 
 ---
 
@@ -221,10 +221,10 @@ class BaseAgent(ABC):
 
 **RED → GREEN checklist:**
 
-- [ ] Tests 4.1–4.3 fail with `TypeError` (abstract)
-- [ ] Tests 4.4–4.6 fail (no concrete agent to test — create a `StubAgent` in the test file)
-- [ ] Write `BaseAgent` ABC with abstract `run(context) -> context` and `name` attribute
-- [ ] All tests pass
+- [x] Tests 4.1–4.3 fail with `TypeError` (abstract)
+- [x] Tests 4.4–4.6 fail (no concrete agent to test — create a `StubAgent` in the test file)
+- [x] Write `BaseAgent` ABC with abstract `run(context) -> context` and `name` attribute (checked at `__init__` time, not `__init_subclass__`)
+- [x] All tests pass
 
 ---
 
