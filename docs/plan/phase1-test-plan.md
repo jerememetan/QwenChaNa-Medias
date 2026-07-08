@@ -391,7 +391,7 @@ def resume_job(job_id: str, agents: list[BaseAgent], storage: StorageBackend) ->
 - [x] All tests fail (routes don't exist — ImportError)
 - [x] Write route handlers with proper status codes and validation
 - [x] All tests pass
-- [ ] Refactor: extract job store access into FastAPI dependency (deferred — current approach is sufficient for Phase 1)
+- [x] Refactor: job store injected via `create_app()` factory function (deferred FastAPI dependency — current approach is sufficient for Phase 1)
 
 ---
 
@@ -407,6 +407,13 @@ def resume_job(job_id: str, agents: list[BaseAgent], storage: StorageBackend) ->
 | 10.4 | `test_app_has_result_route`   | App has a route registered for `GET /result/{job_id}`.               |
 | 10.5 | `test_app_has_resume_route`   | App has a route registered for `POST /resume/{job_id}`.              |
 | 10.6 | `test_app_health_check`       | `GET /health` returns `200 {"status": "ok"}` (convenience endpoint). |
+
+**RED → GREEN checklist:**
+
+- [x] All tests fail (main.py doesn't exist — ImportError)
+- [x] Write `create_production_app()` in `backend/main.py` that wires up `LocalStorage` + `create_app()`
+- [x] All 6 tests pass
+- [x] 115 total tests pass — Phase 1 TDD complete
 
 ---
 
@@ -437,14 +444,14 @@ def resume_job(job_id: str, agents: list[BaseAgent], storage: StorageBackend) ->
 
 Before marking Phase 1 complete, verify:
 
-- [ ] Every test was written BEFORE the implementation
-- [ ] Every test was watched failing (RED) before writing code
-- [ ] Every failure was the expected one (missing feature, not typo)
-- [ ] Minimal code was written to pass each test (no over-engineering)
-- [ ] All 108 tests pass (GREEN)
-- [ ] `pytest` output is clean — no warnings, no errors, no skipped
-- [ ] No mocks used unless unavoidable (stub agents are real code, not mocks)
-- [ ] Test file structure mirrors source structure
+- [x] Every test was written BEFORE the implementation
+- [x] Every test was watched failing (RED) before writing code
+- [x] Every failure was the expected one (missing feature, not typo)
+- [x] Minimal code was written to pass each test (no over-engineering)
+- [x] All 108 tests pass (GREEN)
+- [x] `pytest` output is clean — no warnings, no errors, no skipped
+- [x] No mocks used unless unavoidable (stub agents are real code, not mocks)
+- [x] Test file structure mirrors source structure
 
 ---
 

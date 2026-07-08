@@ -1,6 +1,7 @@
 """API routes — FastAPI endpoints for generate, status, result, resume."""
 
 import uuid
+from datetime import datetime, timezone
 
 from fastapi import FastAPI, HTTPException
 
