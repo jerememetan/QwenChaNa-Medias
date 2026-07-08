@@ -5,7 +5,9 @@ pydantic>=2.0
 pydantic-settings>=2.0
 
 # ---- LLM ----
-openai>=1.0
+# No SDK dependency yet — LLMService ABC is provider-agnostic.
+# Alibaba Cloud Model Studio SDK will be added when implementing
+# AlibabaCloudLLMService in Phase 2.
 
 # ---- TTS ----
 # elevenlabs>=1.0

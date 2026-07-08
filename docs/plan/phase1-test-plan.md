@@ -39,10 +39,10 @@ Components are ordered by dependency — each layer is tested and built before t
 
 **RED → GREEN checklist:**
 
-- [ ] All 4 tests fail (ImportError — `Settings` doesn't exist yet)
-- [ ] Write `Settings` class using `pydantic-settings.BaseSettings`
-- [ ] All 4 tests pass
-- [ ] Refactor: none needed
+- [x] All 4 tests fail (ImportError — `Settings` doesn't exist yet)
+- [x] Write `Settings` class using `pydantic-settings.BaseSettings`
+- [x] All 4 tests pass
+- [x] Refactor: none needed
 
 ---
 
