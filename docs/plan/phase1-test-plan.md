@@ -28,19 +28,45 @@ Components are ordered by dependency — each layer is tested and built before t
 
 ## Layer 1: Config (`backend/config.py`)
 
+Service-oriented design: flat `LLM_`, `VOICE_`, `VIDEO_`, `STORAGE_`, `SERVER_` env vars on `Settings` (BaseSettings), grouped via read-only `@property` access returning Pydantic `BaseModel` sub-models. No nested BaseSettings — avoids env_prefix propagation bug with pre-evaluated defaults.
+
 **File:** `tests/test_backend/test_config.py`
 
-| #   | Test Name                               | What It Proves                                                                                                                     |
-| --- | --------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------- |
-| 1.1 | `test_settings_loads_defaults`          | `Settings` instantiates with sensible defaults when no env vars are set (`OUTPUT_DIR="./outputs"`, `HOST="0.0.0.0"`, `PORT=8000`). |
-| 1.2 | `test_settings_reads_env_vars`          | `Settings` picks up values from environment variables (monkeypatch `OPENAI_API_KEY`, verify it's loaded).                          |
-| 1.3 | `test_settings_output_dir_default`      | Default `OUTPUT_DIR` is `"./outputs"`.                                                                                             |
-| 1.4 | `test_settings_storage_backend_default` | Default `STORAGE_BACKEND` is `"local"`.                                                                                            |
+| #   | Test Name                                      | What It Proves                                                                                                                               |
+| --- | ---------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------- |
+| 1.1 | `test_settings_loads_defaults`                 | `Settings` instantiates with all service defaults (`LLM_PROVIDER`, `LLM_API_KEY=""`, `LLM_MODEL`, `VOICE_PROVIDER`, `VIDEO_PROVIDER`, etc.). |
+| 1.2 | `test_settings_llm_reads_env_vars`             | `Settings` picks up LLM overrides from env vars (monkeypatch `LLM_API_KEY`, `LLM_MODEL`).                                                    |
+| 1.3 | `test_settings_llm_property_groups_fields`     | `settings.llm` returns an `LLMConfig` with all five fields populated from flat env vars.                                                     |
+| 1.4 | `test_settings_llm_property_reflects_env_vars` | `settings.llm` reflects env var overrides (monkeypatch `LLM_API_KEY`, `LLM_MODEL` → property picks them up).                                 |
+| 1.5 | `test_settings_storage_defaults`               | `settings.storage` returns `StorageConfig` with `backend="local"`, `output_dir="./outputs"`.                                                 |
+| 1.6 | `test_settings_server_defaults`                | `settings.server` returns `ServerConfig` with `host="0.0.0.0"`, `port=8000`.                                                                 |
+| 1.7 | `test_llm_config_standalone`                   | `LLMConfig()` can be constructed standalone with defaults (pure BaseModel, not BaseSettings).                                                |
 
 **RED → GREEN checklist:**
 
-- [x] All 4 tests fail (ImportError — `Settings` doesn't exist yet)
-- [x] Write `Settings` class using `pydantic-settings.BaseSettings`
+- [x] All 7 tests fail (ImportError — `Settings`, `LLMConfig`, etc. don't exist yet)
+- [x] Write `Settings` class (flat BaseSettings fields + @property grouped access)
+- [x] Write `LLMConfig`, `VoiceConfig`, `VideoConfig`, `StorageConfig`, `ServerConfig` (BaseModel sub-models)
+- [x] All 7 tests pass
+- [x] Refactor: none needed
+
+### Layer 1b: LLM Service Abstraction (`tools/llm.py`)
+
+Provider-agnostic `LLMService` ABC. Agents call `llm_service.generate(prompt, agent_name)` — concrete implementation (`AlibabaCloudLLMService`) deferred to Phase 2.
+
+**File:** `tests/test_tools/test_llm.py`
+
+| #    | Test Name                                           | What It Proves                                                       |
+| ---- | --------------------------------------------------- | -------------------------------------------------------------------- |
+| 1b.1 | `test_llm_service_is_abstract`                      | `LLMService()` raises `TypeError` — cannot instantiate ABC directly. |
+| 1b.2 | `test_llm_service_requires_generate`                | Subclass without `generate()` raises `TypeError` on instantiation.   |
+| 1b.3 | `test_concrete_llm_service_can_be_instantiated`     | `StubLLMService` (with `generate()`) can be instantiated.            |
+| 1b.4 | `test_concrete_llm_service_generate_returns_string` | `StubLLMService.generate()` returns a `str` — contract verified.     |
+
+**RED → GREEN checklist:**
+
+- [x] All 4 tests fail (ImportError — `LLMService` doesn't exist yet)
+- [x] Write `LLMService` ABC with abstract `generate(prompt, agent_name) -> str`
 - [x] All 4 tests pass
 - [x] Refactor: none needed
 
