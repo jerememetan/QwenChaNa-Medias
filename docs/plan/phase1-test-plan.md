@@ -321,10 +321,10 @@ def resume_job(job_id: str, agents: list[BaseAgent], storage: StorageBackend) ->
 
 **RED → GREEN checklist:**
 
-- [ ] All tests fail (resume module doesn't exist)
-- [ ] Write `resume_job(job_id, agents, storage)` function
-- [ ] All tests pass
-- [ ] Refactor: share persistence logic with Pipeline if duplicated
+- [x] All tests fail (resume module doesn't exist — ImportError)
+- [x] Write `resume_job(job_id, agents, storage)` function
+- [x] All tests pass
+- [x] Refactor: resume_job reuses Pipeline.run() for remaining agents — persistence shared
 
 ---
 

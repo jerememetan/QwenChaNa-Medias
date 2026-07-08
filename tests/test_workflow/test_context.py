@@ -54,6 +54,7 @@ class TestJobContextSerialization:
 
 class TestJobContextOperations:
     def test_context_agent_completion_by_key(self):
+        ctx = JobContext(job_id="abc", prompt="test")
         assert AgentName.DIRECTOR not in ctx.agent_results
         ctx.agent_results[AgentName.DIRECTOR] = AgentResult(
             agent_name=AgentName.DIRECTOR, success=True
