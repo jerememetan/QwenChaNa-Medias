@@ -247,8 +247,8 @@ class BaseAgent(ABC):
 
 **RED → GREEN checklist:**
 
-- [ ] All tests should pass immediately (`JobContext` is already implemented as `WorkflowState`)
-- [ ] If any test fails, fix the re-export in `workflow/context.py`
+- [x] All tests should pass immediately (`JobContext` is already implemented as `WorkflowState`)
+- [x] If any test fails, fix the re-export in `workflow/context.py` — 1 test needed a fix (`updated_at` test: model doesn't auto-update, verified caller must manually set it)
 
 ---
 
@@ -290,10 +290,10 @@ class Pipeline:
 
 **RED → GREEN checklist:**
 
-- [ ] All tests fail (Pipeline doesn't exist)
-- [ ] Write `Pipeline` class with `run(job_id, agents, context)` method
-- [ ] All tests pass
-- [ ] Refactor: extract context persistence into a helper if repeated
+- [x] All tests fail (Pipeline doesn't exist — ImportError)
+- [x] Write `Pipeline` class with `run(job_id, agents, context)` method
+- [x] All tests pass
+- [x] Refactor: context persistence extracted into `_persist_context()` helper
 
 ---
 
