@@ -351,9 +351,9 @@ def resume_job(job_id: str, agents: list[BaseAgent], storage: StorageBackend) ->
 
 **RED → GREEN checklist:**
 
-- [ ] All tests fail (schemas don't exist)
-- [ ] Write Pydantic request/response models with `Field` validators
-- [ ] All tests pass
+- [x] All tests fail (schemas don't exist — ImportError)
+- [x] Write Pydantic request/response models with `Field` validators
+- [x] All tests pass
 
 ---
 
@@ -388,10 +388,10 @@ def resume_job(job_id: str, agents: list[BaseAgent], storage: StorageBackend) ->
 
 **RED → GREEN checklist:**
 
-- [ ] All tests fail (routes don't exist)
-- [ ] Write route handlers with proper status codes and validation
-- [ ] All tests pass
-- [ ] Refactor: extract job store access into FastAPI dependency
+- [x] All tests fail (routes don't exist — ImportError)
+- [x] Write route handlers with proper status codes and validation
+- [x] All tests pass
+- [ ] Refactor: extract job store access into FastAPI dependency (deferred — current approach is sufficient for Phase 1)
 
 ---
 
