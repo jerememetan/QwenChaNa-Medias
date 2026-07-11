@@ -32,7 +32,12 @@ class LLMService(ABC):
 
 
 class AlibabaCloudLLMService(LLMService):
-    """Concrete LLM service using OpenAI-compatible SDK against Alibaba Cloud DashScope."""
+    """Concrete LLM service for Alibaba Cloud Model Studio.
+
+    Uses the ``openai`` Python SDK because Model Studio exposes an
+    OpenAI-compatible API mode. The endpoint URL (dashscope.aliyuncs.com)
+    is the underlying API address — the product is Alibaba Cloud Model Studio.
+    """
 
     def __init__(self, config: LLMConfig) -> None:
         self.config = config

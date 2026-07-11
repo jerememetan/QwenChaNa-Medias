@@ -5,6 +5,7 @@ pydantic>=2.0
 pydantic-settings>=2.0
 
 # ---- LLM ----
+# openai SDK used because Alibaba Cloud Model Studio offers an OpenAI-compatible API mode.
 openai>=1.0
 
 # ---- TTS ----
