@@ -2,6 +2,9 @@
 
 from abc import ABC, abstractmethod
 
+import openai
+
+from backend.config import LLMConfig
 from models.enums import AgentName
 
 
@@ -26,3 +29,28 @@ class LLMService(ABC):
             The generated text response.
         """
         ...
+
+
+class AlibabaCloudLLMService(LLMService):
+    """Concrete LLM service using OpenAI-compatible SDK against Alibaba Cloud DashScope."""
+
+    def __init__(self, config: LLMConfig) -> None:
+        self.config = config
+        self._client = openai.OpenAI(
+            api_key=config.api_key,
+            base_url=config.base_url,
+            timeout=config.timeout,
+        )
+
+    def generate(self, prompt: str, agent_name: AgentName) -> str:
+        response = self._client.chat.completions.create(
+            model=self.config.model,
+            messages=[
+                {
+                    "role": "system",
+                    "content": f"You are the {agent_name.value} agent in a video production pipeline. Respond with structured JSON matching the expected output schema.",
+                },
+                {"role": "user", "content": prompt},
+            ],
+        )
+        return response.choices[0].message.content
