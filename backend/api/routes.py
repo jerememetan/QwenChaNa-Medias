@@ -5,6 +5,7 @@ from datetime import datetime, timezone
 
 from fastapi import FastAPI, HTTPException
 
+from agents.base import BaseAgent
 from backend.api.schemas import (
     GenerateRequest,
     GenerateResponse,
@@ -16,12 +17,16 @@ from models.enums import JobStatus
 from models.job import JobRecord
 from models.workflow_state import WorkflowState
 from storage.base import StorageBackend
+from workflow.pipeline import Pipeline
 
 
 def create_app(
-    storage: StorageBackend, job_store: dict[str, JobRecord]
+    storage: StorageBackend,
+    job_store: dict[str, JobRecord],
+    agents: list[BaseAgent] | None = None,
 ) -> FastAPI:
     app = FastAPI()
+    pipeline = Pipeline(storage) if agents else None
 
     @app.post("/generate", status_code=202, response_model=GenerateResponse)
     def generate(req: GenerateRequest) -> GenerateResponse:
@@ -29,6 +34,16 @@ def create_app(
         job_record = JobRecord(job_id=job_id, prompt=req.prompt)
         job_store[job_id] = job_record
         ctx = WorkflowState(job_id=job_id, prompt=req.prompt)
+
+        if pipeline is not None:
+            ctx = pipeline.run(job_id, agents, ctx)
+            job_record.status = ctx.status
+            job_record.updated_at = ctx.updated_at
+            if ctx.failed_agent:
+                job_record.failed_agent = ctx.failed_agent
+            if ctx.error:
+                job_record.error = ctx.error
+
         storage.save(job_id, "pipeline", "context.json", ctx.model_dump(mode="json"))
         return GenerateResponse(job_id=job_id)
 

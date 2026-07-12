@@ -41,13 +41,20 @@ class AlibabaCloudLLMService(LLMService):
 
     def __init__(self, config: LLMConfig) -> None:
         self.config = config
-        self._client = openai.OpenAI(
-            api_key=config.api_key,
-            base_url=config.base_url,
-            timeout=config.timeout,
-        )
+        self._client: openai.OpenAI | None = None
+        if config.api_key:
+            self._client = openai.OpenAI(
+                api_key=config.api_key,
+                base_url=config.base_url,
+                timeout=config.timeout,
+            )
 
     def generate(self, prompt: str, agent_name: AgentName) -> str:
+        if self._client is None:
+            raise RuntimeError(
+                "AlibabaCloudLLMService has no API key configured — "
+                "set LLM_API_KEY in .env or pass api_key to LLMConfig"
+            )
         response = self._client.chat.completions.create(
             model=self.config.model,
             messages=[

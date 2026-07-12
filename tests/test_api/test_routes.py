@@ -2,14 +2,20 @@
 
 import uuid
 from datetime import datetime, timezone
+from unittest.mock import MagicMock
 
 from fastapi.testclient import TestClient
 
+from agents.director import DirectorAgent
+from agents.research import ResearchAgent
+from agents.script import ScriptAgent
+from agents.storyboard import StoryboardAgent
 from backend.api.routes import create_app
 from models.enums import AgentName, JobStatus
 from models.job import JobRecord
 from models.workflow_state import WorkflowState
 from storage.base import StorageBackend
+from tools.llm import LLMService
 
 
 class InMemoryStorage(StorageBackend):
@@ -165,3 +171,39 @@ class TestResumeEndpoint:
         job_store[job_id].status = JobStatus.COMPLETED
         response = client.post(f"/resume/{job_id}")
         assert response.status_code == 409
+
+
+def _mock_llm_service(*responses: str) -> MagicMock:
+    mock = MagicMock(spec=LLMService)
+    mock.generate.side_effect = responses
+    return mock
+
+
+class TestGeneratePipelineExecution:
+    def test_generate_runs_pipeline_and_returns_completed_status(self):
+        """POST /generate with agents should run all 4 agents and return a completed job."""
+        brief_json = '{"title":"AI Explainer","prompt":"Make an AI video","tone":"informative","audience":"general","duration_seconds":30.0,"summary":"AI overview"}'
+        research_json = '{"brief_summary":"AI overview","notes":[],"overall_confidence":0.7}'
+        script_json = '{"title":"AI Explainer","scenes":[{"scene_number":1,"narration":"AI transforms the world","duration_hint":15.0,"visual_direction":"Show AI systems"}]}'
+        storyboard_json = '{"shots":[{"shot_number":1,"scene_number":1,"visual_prompt":"AI lab","camera":"medium","motion":"pan","duration":15.0}]}'
+
+        mock_llm = _mock_llm_service(brief_json, research_json, script_json, storyboard_json)
+        storage = InMemoryStorage()
+        job_store: dict[str, JobRecord] = {}
+
+        agents = [
+            DirectorAgent(llm_service=mock_llm, storage=storage),
+            ResearchAgent(llm_service=mock_llm, storage=storage),
+            ScriptAgent(llm_service=mock_llm, storage=storage),
+            StoryboardAgent(llm_service=mock_llm, storage=storage),
+        ]
+
+        app = create_app(storage=storage, job_store=job_store, agents=agents)
+        client = TestClient(app)
+
+        resp = client.post("/generate", json={"prompt": "Make an AI video"})
+        assert resp.status_code == 202
+        job_id = resp.json()["job_id"]
+
+        status_resp = client.get(f"/status/{job_id}")
+        assert status_resp.json()["status"] == "completed"
