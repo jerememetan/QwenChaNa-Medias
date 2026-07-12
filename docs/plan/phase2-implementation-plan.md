@@ -34,7 +34,7 @@
 - Modify: `requirements.txt` — add `openai>=1.0`
 - Test: `tests/test_tools/test_llm.py` — add tests for concrete implementation
 
-- [ ] **Step 1: Add `openai>=1.0` to requirements.txt**
+- [x] **Step 1: Add `openai>=1.0` to requirements.txt**
 
 Open `requirements.txt` and replace the `# ---- LLM ----` comment block (lines 8–11) with:
 
@@ -43,7 +43,7 @@ Open `requirements.txt` and replace the `# ---- LLM ----` comment block (lines 8
 openai>=1.0
 ```
 
-- [ ] **Step 2: Write failing tests for AlibabaCloudLLMService**
+- [x] **Step 2: Write failing tests for AlibabaCloudLLMService**
 
 Add to `tests/test_tools/test_llm.py`:
 
@@ -111,16 +111,16 @@ class TestAlibabaCloudLLMService:
             assert "director" in system_msg["content"].lower()
 ```
 
-- [ ] **Step 3: Run tests to verify they fail**
+- [x] **Step 3: Run tests to verify they fail**
 
 Run: `venv\Scripts\python.exe -m pytest tests/test_tools/test_llm.py -v`
 Expected: FAIL — `AlibabaCloudLLMService` doesn't exist yet (ImportError)
 
-- [ ] **Step 4: Install openai package**
+- [x] **Step 4: Install openai package**
 
 Run: `venv\Scripts\pip.exe install openai>=1.0`
 
-- [ ] **Step 5: Implement AlibabaCloudLLMService**
+- [x] **Step 5: Implement AlibabaCloudLLMService**
 
 Add to `tools/llm.py` after the `LLMService` ABC:
 
@@ -154,12 +154,12 @@ class AlibabaCloudLLMService(LLMService):
         return response.choices[0].message.content
 ```
 
-- [ ] **Step 6: Run tests to verify they pass**
+- [x] **Step 6: Run tests to verify they pass**
 
 Run: `venv\Scripts\python.exe -m pytest tests/test_tools/test_llm.py -v`
 Expected: ALL PASS (4 original + 5 new = 9 tests)
 
-- [ ] **Step 7: Commit**
+- [x] **Step 7: Commit**
 
 ```bash
 git add tools/llm.py tests/test_tools/test_llm.py requirements.txt
