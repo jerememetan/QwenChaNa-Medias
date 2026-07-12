@@ -15,8 +15,8 @@
 ## Implementation Order
 
 ```
-1. AlibabaCloudLLMService   (all agents depend on this)
-2. Director Agent            (no upstream agent deps — reads ctx.prompt)
+1. AlibabaCloudLLMService   ✅ DONE
+2. Director Agent            ✅ DONE
 3. Research Agent            (reads Director output)
 4. Script Agent              (reads Director + Research output)
 5. Storyboard Agent          (reads Script output)
@@ -175,7 +175,7 @@ git commit -m "feat: implement AlibabaCloudLLMService with OpenAI SDK"
 - Modify: `agents/director.py` — implement DirectorAgent
 - Test: `tests/test_agents/test_director.py` — create new test file
 
-- [ ] **Step 1: Write failing tests for DirectorAgent**
+- [x] **Step 1: Write failing tests for DirectorAgent**
 
 Create `tests/test_agents/test_director.py`:
 
@@ -270,12 +270,9 @@ class TestDirectorAgent:
         assert call_args.kwargs["filename"] == "creative_brief.json"
 ```
 
-- [ ] **Step 2: Run tests to verify they fail**
+- [x] **Step 2: Run tests to verify they fail**
 
-Run: `venv\Scripts\python.exe -m pytest tests/test_agents/test_director.py -v`
-Expected: FAIL — `DirectorAgent` doesn't exist yet (ImportError)
-
-- [ ] **Step 3: Implement DirectorAgent**
+- [x] **Step 3: Implement DirectorAgent**
 
 Write `agents/director.py`:
 
@@ -347,23 +344,18 @@ class DirectorAgent:
         return context
 ```
 
-- [ ] **Step 4: Update `BaseAgent.__init__` to accept agents with constructor args**
+- [x] **Step 4: Update `BaseAgent.__init__` to accept agents with constructor args**
 
 The current `BaseAgent.__init__` only checks `name`. Agents now take constructor args (`llm_service`, `storage`). The `__init__` doesn't need changes — `DirectorAgent.__init__` calls `super().__init__()` implicitly via the `name` class attribute check. But we need to make sure `DirectorAgent` passes the `BaseAgent.__init__` check. Modify `agents/director.py` to call `super().__init__()`:
 
 Actually, the current `BaseAgent.__init__` checks `self.name` which is a class attribute, so it works. No change needed to BaseAgent.
 
-- [ ] **Step 5: Run tests to verify they pass**
+- [x] **Step 5: Run tests to verify they pass**
 
 Run: `venv\Scripts\python.exe -m pytest tests/test_agents/test_director.py -v`
 Expected: ALL PASS (8 tests)
 
-- [ ] **Step 6: Commit**
-
-```bash
-git add agents/director.py tests/test_agents/test_director.py
-git commit -m "feat: implement Director agent with LLM-powered creative brief generation"
-```
+- [x] **Step 6: Commit**
 
 ---
 
