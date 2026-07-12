@@ -17,7 +17,7 @@
 ```
 1. AlibabaCloudLLMService   ✅ DONE
 2. Director Agent            ✅ DONE
-3. Research Agent            (reads Director output)
+3. Research Agent            ✅ DONE
 4. Script Agent              (reads Director + Research output)
 5. Storyboard Agent          (reads Script output)
 6. Wire /generate → Pipeline (closes the critical API gap)
@@ -366,7 +366,7 @@ Expected: ALL PASS (8 tests)
 - Modify: `agents/research.py` — implement ResearchAgent
 - Test: `tests/test_agents/test_research.py` — create new test file
 
-- [ ] **Step 1: Write failing tests for ResearchAgent**
+- [x] **Step 1: Write failing tests for ResearchAgent**
 
 Create `tests/test_agents/test_research.py`:
 
@@ -463,12 +463,9 @@ class TestResearchAgent:
         assert call_args["filename"] == "research_notes.json"
 ```
 
-- [ ] **Step 2: Run tests to verify they fail**
+- [x] **Step 2: Run tests to verify they fail**
 
-Run: `venv\Scripts\python.exe -m pytest tests/test_agents/test_research.py -v`
-Expected: FAIL — `ResearchAgent` doesn't exist yet
-
-- [ ] **Step 3: Implement ResearchAgent**
+- [x] **Step 3: Implement ResearchAgent**
 
 Write `agents/research.py`:
 
@@ -552,12 +549,12 @@ class ResearchAgent:
         return context
 ```
 
-- [ ] **Step 4: Run tests to verify they pass**
+- [x] **Step 4: Run tests to verify they pass**
 
 Run: `venv\Scripts\python.exe -m pytest tests/test_agents/test_research.py -v`
 Expected: ALL PASS (7 tests)
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add agents/research.py tests/test_agents/test_research.py
