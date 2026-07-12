@@ -20,8 +20,8 @@
 3. Research Agent            ✅ DONE
 4. Script Agent              ✅ DONE
 5. Storyboard Agent          ✅ DONE
-6. Wire /generate → Pipeline (closes the critical API gap)
-7. Sync JobRecord status     (keeps API status consistent)
+6. Wire /generate → Pipeline ✅ DONE
+7. Sync JobRecord status     ✅ DONE
 ```
 
 ---
@@ -1024,7 +1024,7 @@ git commit -m "feat: implement Storyboard agent with LLM-powered shot generation
 - Modify: `tests/test_api/test_routes.py` — update existing tests + add new ones for pipeline execution
 - Modify: `tests/test_api/test_app.py` — update if needed
 
-- [ ] **Step 1: Write failing test for pipeline execution on /generate**
+- [x] **Step 1: Write failing test for pipeline execution on /generate**
 
 Add to `tests/test_api/test_routes.py`:
 
@@ -1072,7 +1072,7 @@ class TestGeneratePipelineExecution:
 
 Note: This requires a new `create_app_with_agents` factory or modifying `create_app` to accept agents. We'll add that.
 
-- [ ] **Step 2: Update `create_app` to accept agents and run pipeline**
+- [x] **Step 2: Update `create_app` to accept agents and run pipeline**
 
 Modify `backend/api/routes.py` — change `create_app` signature and the `generate` endpoint:
 
@@ -1110,7 +1110,7 @@ def create_app(
         return GenerateResponse(job_id=job_id)
 ```
 
-- [ ] **Step 3: Update `backend/main.py` to inject agents**
+- [x] **Step 3: Update `backend/main.py` to inject agents**
 
 Modify `backend/main.py`:
 
@@ -1147,22 +1147,22 @@ def create_production_app():
 app = create_production_app()
 ```
 
-- [ ] **Step 4: Run all existing route tests to verify they still pass**
+- [x] **Step 4: Run all existing route tests to verify they still pass**
 
 Run: `venv\Scripts\python.exe -m pytest tests/test_api/test_routes.py -v`
 Expected: Existing 14 tests still pass (they use `create_app(storage, job_store)` without agents — `agents=None`, pipeline won't run, behavior unchanged)
 
-- [ ] **Step 5: Run the new pipeline execution test**
+- [x] **Step 5: Run the new pipeline execution test**
 
 Run: `venv\Scripts\python.exe -m pytest tests/test_api/test_routes.py::TestGeneratePipelineExecution -v`
 Expected: PASS
 
-- [ ] **Step 6: Run all API tests together**
+- [x] **Step 6: Run all API tests together**
 
 Run: `venv\Scripts\python.exe -m pytest tests/test_api/ -v`
 Expected: ALL PASS (14 original + 1 new = 15 route tests, 6 app tests)
 
-- [ ] **Step 7: Commit**
+- [x] **Step 7: Commit**
 
 ```bash
 git add backend/api/routes.py backend/main.py tests/test_api/test_routes.py
@@ -1178,7 +1178,7 @@ git commit -m "feat: wire /generate endpoint to run Pipeline with Phase 2 agents
 - Modify: `backend/api/routes.py` — sync status in status/result/resume endpoints
 - Test: `tests/test_api/test_routes.py` — add tests for status consistency
 
-- [ ] **Step 1: Write failing tests for status sync**
+- [x] **Step 1: Write failing tests for status sync**
 
 Add to `tests/test_api/test_routes.py`:
 
@@ -1264,7 +1264,7 @@ class TestStatusConsistency:
         assert len(data["artifacts"]) == 4  # brief, research, script, storyboard
 ```
 
-- [ ] **Step 2: Update `/result` endpoint to return actual artifacts from WorkflowState**
+- [x] **Step 2: Update `/result` endpoint to return actual artifacts from WorkflowState**
 
 Modify the `result` endpoint in `routes.py` to load artifacts from the WorkflowState:
 
@@ -1293,12 +1293,12 @@ Modify the `result` endpoint in `routes.py` to load artifacts from the WorkflowS
         )
 ```
 
-- [ ] **Step 3: Run tests to verify they pass**
+- [x] **Step 3: Run tests to verify they pass**
 
 Run: `venv\Scripts\python.exe -m pytest tests/test_api/test_routes.py -v`
 Expected: ALL PASS (14 original + 1 pipeline + 3 status consistency = 18 tests)
 
-- [ ] **Step 4: Commit**
+- [x] **Step 4: Commit**
 
 ```bash
 git add backend/api/routes.py tests/test_api/test_routes.py
