@@ -19,7 +19,7 @@
 2. Director Agent            ✅ DONE
 3. Research Agent            ✅ DONE
 4. Script Agent              ✅ DONE
-5. Storyboard Agent          (reads Script output)
+5. Storyboard Agent          ✅ DONE
 6. Wire /generate → Pipeline (closes the critical API gap)
 7. Sync JobRecord status     (keeps API status consistent)
 ```
@@ -807,7 +807,7 @@ git commit -m "feat: implement Script agent with LLM-powered scene generation"
 - Modify: `agents/storyboard.py` — implement StoryboardAgent
 - Test: `tests/test_agents/test_storyboard.py` — create new test file
 
-- [ ] **Step 1: Write failing tests for StoryboardAgent**
+- [x] **Step 1: Write failing tests for StoryboardAgent**
 
 Create `tests/test_agents/test_storyboard.py`:
 
@@ -911,12 +911,9 @@ class TestStoryboardAgent:
         assert call_args["filename"] == "storyboard.json"
 ```
 
-- [ ] **Step 2: Run tests to verify they fail**
+- [x] **Step 2: Run tests to verify they fail**
 
-Run: `venv\Scripts\python.exe -m pytest tests/test_agents/test_storyboard.py -v`
-Expected: FAIL — `StoryboardAgent` doesn't exist yet
-
-- [ ] **Step 3: Implement StoryboardAgent**
+- [x] **Step 3: Implement StoryboardAgent**
 
 Write `agents/storyboard.py`:
 
@@ -1004,12 +1001,12 @@ class StoryboardAgent:
         return context
 ```
 
-- [ ] **Step 4: Run tests to verify they pass**
+- [x] **Step 4: Run tests to verify they pass**
 
 Run: `venv\Scripts\python.exe -m pytest tests/test_agents/test_storyboard.py -v`
 Expected: ALL PASS (7 tests)
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add agents/storyboard.py tests/test_agents/test_storyboard.py
