@@ -82,11 +82,17 @@ def create_app(
                 status_code=409,
                 detail=f"Job is {record.status.value}, not completed",
             )
+        artifacts = []
+        context_data = storage.load(job_id, "pipeline", "context.json")
+        if context_data is not None:
+            ctx = WorkflowState.model_validate(context_data)
+            for agent_result in ctx.agent_results.values():
+                artifacts.extend(agent_result.artifacts)
         return ResultResponse(
             job_id=record.job_id,
             status=record.status,
             output_path=f"./outputs/{job_id}",
-            artifacts=[],
+            artifacts=artifacts,
         )
 
     @app.post("/resume/{job_id}", status_code=202, response_model=ResumeResponse)

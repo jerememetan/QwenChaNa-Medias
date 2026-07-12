@@ -207,3 +207,80 @@ class TestGeneratePipelineExecution:
 
         status_resp = client.get(f"/status/{job_id}")
         assert status_resp.json()["status"] == "completed"
+
+
+class TestStatusConsistency:
+    def test_status_reflects_pipeline_completed_state(self):
+        """When pipeline completes, /status should return 'completed'."""
+        brief_json = '{"title":"T","prompt":"P","tone":"t","audience":"a","duration_seconds":10.0,"summary":"s"}'
+        research_json = '{"brief_summary":"s","notes":[],"overall_confidence":0.5}'
+        script_json = '{"title":"T","scenes":[{"scene_number":1,"narration":"n","duration_hint":5.0,"visual_direction":"v"}]}'
+        storyboard_json = '{"shots":[{"shot_number":1,"scene_number":1,"visual_prompt":"v","camera":"c","motion":"m","duration":5.0}]}'
+
+        mock_llm = _mock_llm_service(brief_json, research_json, script_json, storyboard_json)
+        storage = InMemoryStorage()
+        job_store: dict[str, JobRecord] = {}
+        agents = [
+            DirectorAgent(llm_service=mock_llm, storage=storage),
+            ResearchAgent(llm_service=mock_llm, storage=storage),
+            ScriptAgent(llm_service=mock_llm, storage=storage),
+            StoryboardAgent(llm_service=mock_llm, storage=storage),
+        ]
+        app = create_app(storage=storage, job_store=job_store, agents=agents)
+        client = TestClient(app)
+
+        resp = client.post("/generate", json={"prompt": "test prompt"})
+        job_id = resp.json()["job_id"]
+
+        status_resp = client.get(f"/status/{job_id}")
+        data = status_resp.json()
+        assert data["status"] == "completed"
+
+    def test_status_reflects_pipeline_failed_state(self):
+        """When an agent fails, /status should return 'failed' with failed_agent."""
+        mock_llm = MagicMock(spec=LLMService)
+        mock_llm.generate.side_effect = RuntimeError("LLM timeout")
+
+        storage = InMemoryStorage()
+        job_store: dict[str, JobRecord] = {}
+        agents = [
+            DirectorAgent(llm_service=mock_llm, storage=storage),
+        ]
+        app = create_app(storage=storage, job_store=job_store, agents=agents)
+        client = TestClient(app)
+
+        resp = client.post("/generate", json={"prompt": "test prompt"})
+        job_id = resp.json()["job_id"]
+
+        status_resp = client.get(f"/status/{job_id}")
+        data = status_resp.json()
+        assert data["status"] == "failed"
+        assert data["failed_agent"] == "director"
+
+    def test_result_returns_200_for_completed_job_with_artifacts(self):
+        """When pipeline completes, /result should return artifacts from all agents."""
+        brief_json = '{"title":"T","prompt":"P","tone":"t","audience":"a","duration_seconds":10.0,"summary":"s"}'
+        research_json = '{"brief_summary":"s","notes":[],"overall_confidence":0.5}'
+        script_json = '{"title":"T","scenes":[{"scene_number":1,"narration":"n","duration_hint":5.0,"visual_direction":"v"}]}'
+        storyboard_json = '{"shots":[{"shot_number":1,"scene_number":1,"visual_prompt":"v","camera":"c","motion":"m","duration":5.0}]}'
+
+        mock_llm = _mock_llm_service(brief_json, research_json, script_json, storyboard_json)
+        storage = InMemoryStorage()
+        job_store: dict[str, JobRecord] = {}
+        agents = [
+            DirectorAgent(llm_service=mock_llm, storage=storage),
+            ResearchAgent(llm_service=mock_llm, storage=storage),
+            ScriptAgent(llm_service=mock_llm, storage=storage),
+            StoryboardAgent(llm_service=mock_llm, storage=storage),
+        ]
+        app = create_app(storage=storage, job_store=job_store, agents=agents)
+        client = TestClient(app)
+
+        resp = client.post("/generate", json={"prompt": "test"})
+        job_id = resp.json()["job_id"]
+
+        result_resp = client.get(f"/result/{job_id}")
+        assert result_resp.status_code == 200
+        data = result_resp.json()
+        assert data["status"] == "completed"
+        assert len(data["artifacts"]) == 4
