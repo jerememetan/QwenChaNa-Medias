@@ -8,11 +8,8 @@ pydantic-settings>=2.0
 # openai SDK used because Alibaba Cloud Model Studio offers an OpenAI-compatible API mode.
 openai>=1.0
 
-# ---- TTS ----
-# elevenlabs>=1.0
-
-# ---- Video Generation ----
-# runway-sdk  (or equivalent)
+# ---- TTS + Video Generation (Alibaba Cloud Model Studio) ----
+dashscope>=1.20
 
 # ---- Media Processing ----
 ffmpeg-python>=0.2

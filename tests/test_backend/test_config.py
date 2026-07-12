@@ -6,14 +6,14 @@ from backend.config import Settings, LLMConfig, VoiceConfig, VideoConfig, Storag
 class TestConfig:
     def test_settings_loads_defaults(self):
         """Settings instantiates with service-oriented defaults."""
-        settings = Settings()
+        settings = Settings(_env_file=None)
         assert settings.LLM_PROVIDER == "alibaba_cloud_model_studio"
         assert settings.LLM_API_KEY == ""
         assert settings.LLM_BASE_URL == "https://dashscope.aliyuncs.com/compatible-mode/v1"
         assert settings.LLM_MODEL == "qwen-plus"
         assert settings.LLM_TIMEOUT == 60
-        assert settings.VOICE_PROVIDER == "elevenlabs"
-        assert settings.VIDEO_PROVIDER == "runway"
+        assert settings.VOICE_PROVIDER == "dashscope"
+        assert settings.VIDEO_PROVIDER == "dashscope"
         assert settings.STORAGE_BACKEND == "local"
         assert settings.STORAGE_OUTPUT_DIR == "./outputs"
         assert settings.SERVER_HOST == "0.0.0.0"
@@ -29,7 +29,7 @@ class TestConfig:
 
     def test_settings_llm_property_groups_fields(self):
         """settings.llm returns an LLMConfig grouping all LLM fields."""
-        settings = Settings()
+        settings = Settings(_env_file=None)
         llm = settings.llm
         assert isinstance(llm, LLMConfig)
         assert llm.provider == "alibaba_cloud_model_studio"
