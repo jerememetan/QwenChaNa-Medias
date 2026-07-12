@@ -18,7 +18,7 @@
 1. AlibabaCloudLLMService   ✅ DONE
 2. Director Agent            ✅ DONE
 3. Research Agent            ✅ DONE
-4. Script Agent              (reads Director + Research output)
+4. Script Agent              ✅ DONE
 5. Storyboard Agent          (reads Script output)
 6. Wire /generate → Pipeline (closes the critical API gap)
 7. Sync JobRecord status     (keeps API status consistent)
@@ -570,7 +570,7 @@ git commit -m "feat: implement Research agent with LLM-powered fact gathering"
 - Modify: `agents/script.py` — implement ScriptAgent
 - Test: `tests/test_agents/test_script.py` — create new test file
 
-- [ ] **Step 1: Write failing tests for ScriptAgent**
+- [x] **Step 1: Write failing tests for ScriptAgent**
 
 Create `tests/test_agents/test_script.py`:
 
@@ -684,12 +684,9 @@ class TestScriptAgent:
         assert call_args["filename"] == "script.json"
 ```
 
-- [ ] **Step 2: Run tests to verify they fail**
+- [x] **Step 2: Run tests to verify they fail**
 
-Run: `venv\Scripts\python.exe -m pytest tests/test_agents/test_script.py -v`
-Expected: FAIL — `ScriptAgent` doesn't exist yet
-
-- [ ] **Step 3: Implement ScriptAgent**
+- [x] **Step 3: Implement ScriptAgent**
 
 Write `agents/script.py`:
 
@@ -789,12 +786,12 @@ class ScriptAgent:
         return context
 ```
 
-- [ ] **Step 4: Run tests to verify they pass**
+- [x] **Step 4: Run tests to verify they pass**
 
 Run: `venv\Scripts\python.exe -m pytest tests/test_agents/test_script.py -v`
 Expected: ALL PASS (8 tests)
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add agents/script.py tests/test_agents/test_script.py
