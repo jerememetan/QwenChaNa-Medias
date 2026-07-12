@@ -22,6 +22,7 @@
 5. Storyboard Agent          ✅ DONE
 6. Wire /generate → Pipeline ✅ DONE
 7. Sync JobRecord status     ✅ DONE
+8. Integration verification  ✅ DONE
 ```
 
 ---
@@ -1313,17 +1314,17 @@ git commit -m "feat: sync JobRecord status from Pipeline and return real artifac
 
 - No new files — just run the full test suite and verify
 
-- [ ] **Step 1: Run complete test suite**
+- [x] **Step 1: Run complete test suite**
 
 Run: `venv\Scripts\python.exe -m pytest -v`
 Expected: ALL PASS — Phase 1 (115) + Phase 2 new tests
 
-- [ ] **Step 2: Run with coverage**
+- [x] **Step 2: Run with coverage**
 
 Run: `venv\Scripts\python.exe -m pytest --cov=agents --cov=tools --cov=backend --cov=workflow --cov=models --cov=storage --cov-report=term-missing`
 Expected: High coverage on all Phase 2 agent and LLM code
 
-- [ ] **Step 3: Manual smoke test — start server and hit endpoints**
+- [x] **Step 3: Manual smoke test — start server and hit endpoints**
 
 ```bash
 venv\Scripts\python.exe -m uvicorn backend.main:app --reload
@@ -1338,7 +1339,7 @@ Invoke-RestMethod -Method Post -Uri http://127.0.0.1:8000/generate -ContentType 
 
 Expected: This will make real LLM calls (requires `LLM_API_KEY` in `.env`). If API key is missing, the pipeline will fail — that's expected. Verify `/status` shows `failed` with appropriate error.
 
-- [ ] **Step 4: Commit (if any fixes needed from smoke test)**
+- [x] **Step 4: Commit (if any fixes needed from smoke test)**
 
 ```bash
 git add -A
