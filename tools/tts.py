@@ -4,8 +4,18 @@ from abc import ABC, abstractmethod
 from pathlib import Path
 
 import dashscope
+import requests
+from tenacity import retry, retry_if_exception, stop_after_attempt, wait_exponential
 
 from backend.config import VoiceConfig
+
+
+def _is_transient_error(exc: BaseException) -> bool:
+    if isinstance(exc, (requests.exceptions.ConnectionError, requests.exceptions.Timeout)):
+        return True
+    if isinstance(exc, requests.exceptions.HTTPError) and exc.response is not None:
+        return exc.response.status_code in {429, 502, 503, 504}
+    return False
 
 
 class TTSService(ABC):
@@ -38,6 +48,12 @@ class DashScopeTTSService(TTSService):
         if config.api_key:
             dashscope.api_key = config.api_key
 
+    @retry(
+        reraise=True,
+        stop=stop_after_attempt(3),
+        wait=wait_exponential(multiplier=1, min=1, max=10),
+        retry=retry_if_exception(_is_transient_error),
+    )
     def synthesize(self, text: str, output_path: str) -> str:
         if not self._configured:
             raise RuntimeError(

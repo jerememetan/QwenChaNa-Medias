@@ -1,6 +1,7 @@
 from abc import ABC
 from unittest.mock import MagicMock, patch
 
+import openai
 import pytest
 
 from backend.config import LLMConfig
@@ -117,3 +118,39 @@ class TestAlibabaCloudLLMService:
             call_kwargs = mock_create.call_args.kwargs
             system_msg = call_kwargs["messages"][0]
             assert "director" in system_msg["content"].lower()
+
+
+class TestAlibabaCloudLLMServiceRetries:
+    def test_retries_on_rate_limit_error(self):
+        config = LLMConfig(api_key="test-key", model="qwen3-max")
+        service = AlibabaCloudLLMService(config)
+
+        with patch.object(
+            service._client.chat.completions,
+            "create",
+            side_effect=openai.RateLimitError(
+                message="rate limited",
+                response=MagicMock(status_code=429),
+                body=None,
+            ),
+        ) as mock_create:
+            with pytest.raises(openai.RateLimitError):
+                service.generate("prompt", AgentName.DIRECTOR)
+            assert mock_create.call_count == 3
+
+    def test_does_not_retry_on_auth_error(self):
+        config = LLMConfig(api_key="test-key", model="qwen3-max")
+        service = AlibabaCloudLLMService(config)
+
+        with patch.object(
+            service._client.chat.completions,
+            "create",
+            side_effect=openai.AuthenticationError(
+                message="bad key",
+                response=MagicMock(status_code=401),
+                body=None,
+            ),
+        ) as mock_create:
+            with pytest.raises(openai.AuthenticationError):
+                service.generate("prompt", AgentName.DIRECTOR)
+            assert mock_create.call_count == 1

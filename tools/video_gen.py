@@ -4,8 +4,18 @@ from abc import ABC, abstractmethod
 from pathlib import Path
 
 import dashscope
+import requests
+from tenacity import retry, retry_if_exception, stop_after_attempt, wait_exponential
 
 from backend.config import VideoConfig
+
+
+def _is_transient_error(exc: BaseException) -> bool:
+    if isinstance(exc, (requests.exceptions.ConnectionError, requests.exceptions.Timeout)):
+        return True
+    if isinstance(exc, requests.exceptions.HTTPError) and exc.response is not None:
+        return exc.response.status_code in {429, 502, 503, 504}
+    return False
 
 
 class VideoGenService(ABC):
@@ -29,7 +39,7 @@ class DashScopeVideoGenService(VideoGenService):
     """Concrete video generation service using Alibaba Cloud Model Studio Wan.
 
     Uses the ``dashscope`` Python SDK's VideoSynthesis for
-    text-to-video generation via the Wan model. Video generation is
+    text-to-video generation via the Wan model (wan2.7-t2v). Video generation is
     asynchronous — this service submits the task and polls until complete.
     """
 
@@ -39,6 +49,12 @@ class DashScopeVideoGenService(VideoGenService):
         if config.api_key:
             dashscope.api_key = config.api_key
 
+    @retry(
+        reraise=True,
+        stop=stop_after_attempt(3),
+        wait=wait_exponential(multiplier=1, min=1, max=10),
+        retry=retry_if_exception(_is_transient_error),
+    )
     def generate(self, prompt: str, output_path: str) -> str:
         if not self._configured:
             raise RuntimeError(
@@ -55,8 +71,6 @@ class DashScopeVideoGenService(VideoGenService):
         result = VideoSynthesis.wait(response)
 
         video_url = result.output.video_url
-
-        import requests
 
         path = Path(output_path)
         path.parent.mkdir(parents=True, exist_ok=True)

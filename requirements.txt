@@ -8,6 +8,9 @@ pydantic-settings>=2.0
 # openai SDK used because Alibaba Cloud Model Studio offers an OpenAI-compatible API mode.
 openai>=1.0
 
+# ---- Retry / rate-limit handling ----
+tenacity>=8.0
+
 # ---- TTS + Video Generation (Alibaba Cloud Model Studio) ----
 dashscope>=1.20
 

@@ -33,7 +33,7 @@
 - Modify: `tools/video_gen.py` — wrap `generate()` with retry
 - Test: `tests/test_tools/test_llm.py` — add retry tests
 
-- [ ] **Step 1: Add `tenacity>=8.0` to `requirements.txt`**
+- [x] **Step 1: Add `tenacity>=8.0` to `requirements.txt`**
 
 Open `requirements.txt` and add inside the file:
 
@@ -42,7 +42,7 @@ Open `requirements.txt` and add inside the file:
 tenacity>=8.0
 ```
 
-- [ ] **Step 2: Write failing tests for retry behavior**
+- [x] **Step 2: Write failing tests for retry behavior**
 
 Add to `tests/test_tools/test_llm.py`:
 
@@ -93,17 +93,17 @@ class TestAlibabaCloudLLMServiceRetries:
             assert mock_create.call_count == 1
 ```
 
-- [ ] **Step 3: Run tests to verify they fail**
+- [x] **Step 3: Run tests to verify they fail**
 
 Run: `venv\Scripts\python.exe -m pytest tests/test_tools/test_llm.py -v`
 
 Expected: FAIL — `RateLimitError` test fails because no retry is implemented yet (call count is 1, not 3).
 
-- [ ] **Step 4: Install tenacity**
+- [x] **Step 4: Install tenacity**
 
 Run: `venv\Scripts\pip.exe install tenacity>=8.0`
 
-- [ ] **Step 5: Add retry decorator to `AlibabaCloudLLMService.generate`**
+- [x] **Step 5: Add retry decorator to `AlibabaCloudLLMService.generate`**
 
 Modify `tools/llm.py`:
 
@@ -193,7 +193,7 @@ class AlibabaCloudLLMService(LLMService):
         return response.choices[0].message.content
 ```
 
-- [ ] **Step 6: Add retry decorator to `DashScopeTTSService.synthesize`**
+- [x] **Step 6: Add retry decorator to `DashScopeTTSService.synthesize`**
 
 Modify `tools/tts.py`:
 
@@ -275,7 +275,7 @@ class DashScopeTTSService(TTSService):
         return str(path)
 ```
 
-- [ ] **Step 7: Add retry decorator to `DashScopeVideoGenService.generate`**
+- [x] **Step 7: Add retry decorator to `DashScopeVideoGenService.generate`**
 
 Modify `tools/video_gen.py`:
 
@@ -362,13 +362,13 @@ class DashScopeVideoGenService(VideoGenService):
         return str(path)
 ```
 
-- [ ] **Step 8: Run tests to verify they pass**
+- [x] **Step 8: Run tests to verify they pass**
 
 Run: `venv\Scripts\python.exe -m pytest tests/test_tools/test_llm.py -v`
 
 Expected: ALL PASS (existing tests + new retry tests)
 
-- [ ] **Step 9: Commit**
+- [x] **Step 9: Commit**
 
 ```bash
 git add requirements.txt tools/llm.py tools/tts.py tools/video_gen.py tests/test_tools/test_llm.py

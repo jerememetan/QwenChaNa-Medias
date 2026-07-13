@@ -3,9 +3,18 @@
 from abc import ABC, abstractmethod
 
 import openai
+from tenacity import retry, retry_if_exception_type, stop_after_attempt, wait_exponential
 
 from backend.config import LLMConfig
 from models.enums import AgentName
+
+
+_RETRYABLE_LLM_EXCEPTIONS = (
+    openai.APIConnectionError,
+    openai.RateLimitError,
+    openai.APITimeoutError,
+    openai.InternalServerError,
+)
 
 
 class LLMService(ABC):
@@ -49,6 +58,12 @@ class AlibabaCloudLLMService(LLMService):
                 timeout=config.timeout,
             )
 
+    @retry(
+        reraise=True,
+        stop=stop_after_attempt(3),
+        wait=wait_exponential(multiplier=1, min=1, max=10),
+        retry=retry_if_exception_type(_RETRYABLE_LLM_EXCEPTIONS),
+    )
     def generate(self, prompt: str, agent_name: AgentName) -> str:
         if self._client is None:
             raise RuntimeError(
