@@ -570,7 +570,7 @@ git commit -m "feat: add VideoOutput and VoiceOutput models"
 - Create: `agents/video.py`
 - Create: `tests/test_agents/test_video.py`
 
-- [ ] **Step 1: Write failing tests for VideoAgent**
+- [x] **Step 1: Write failing tests for VideoAgent**
 
 Create `tests/test_agents/test_video.py`:
 
@@ -669,13 +669,13 @@ class TestVideoAgent:
             agent.run(ctx)
 ```
 
-- [ ] **Step 2: Run tests to verify they fail**
+- [x] **Step 2: Run tests to verify they fail**
 
 Run: `venv\Scripts\python.exe -m pytest tests/test_agents/test_video.py -v`
 
 Expected: FAIL — `VideoAgent` does not exist.
 
-- [ ] **Step 3: Implement VideoAgent**
+- [x] **Step 3: Implement VideoAgent**
 
 Create `agents/video.py`:
 
@@ -777,13 +777,13 @@ class VideoAgent:
         return context
 ```
 
-- [ ] **Step 4: Run tests to verify they pass**
+- [x] **Step 4: Run tests to verify they pass**
 
 Run: `venv\Scripts\python.exe -m pytest tests/test_agents/test_video.py -v`
 
 Expected: ALL PASS
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add agents/video.py tests/test_agents/test_video.py
@@ -799,7 +799,7 @@ git commit -m "feat: implement VideoAgent with wan2.7-t2v and clear error on API
 - Create: `agents/voice.py`
 - Create: `tests/test_agents/test_voice.py`
 
-- [ ] **Step 1: Write failing tests for VoiceAgent**
+- [x] **Step 1: Write failing tests for VoiceAgent**
 
 Create `tests/test_agents/test_voice.py`:
 
@@ -898,13 +898,13 @@ class TestVoiceAgent:
             agent.run(ctx)
 ```
 
-- [ ] **Step 2: Run tests to verify they fail**
+- [x] **Step 2: Run tests to verify they fail**
 
 Run: `venv\Scripts\python.exe -m pytest tests/test_agents/test_voice.py -v`
 
 Expected: FAIL — `VoiceAgent` does not exist.
 
-- [ ] **Step 3: Implement VoiceAgent**
+- [x] **Step 3: Implement VoiceAgent**
 
 Create `agents/voice.py`:
 
@@ -1006,13 +1006,13 @@ class VoiceAgent:
         return context
 ```
 
-- [ ] **Step 4: Run tests to verify they pass**
+- [x] **Step 4: Run tests to verify they pass**
 
 Run: `venv\Scripts\python.exe -m pytest tests/test_agents/test_voice.py -v`
 
 Expected: ALL PASS
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add agents/voice.py tests/test_agents/test_voice.py

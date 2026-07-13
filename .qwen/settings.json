@@ -8,7 +8,8 @@
       "Read(C:\\Users\\Jereme\\Downloads\\skills\\skills\\systematic-debugging/**)",
       "Bash(xcopy *)",
       "Read(C:\\Users\\Jereme\\.qwen\\skills/**)",
-      "Bash(rmdir *)"
+      "Bash(rmdir *)",
+      "Bash(dir *)"
     ]
   },
   "$version": 4
