@@ -452,7 +452,7 @@ class TestVoiceOutput:
         assert len(output.tracks) == 1
 ```
 
-- [ ] **Step 2: Run tests to verify they fail**
+- [x] **Step 2: Run tests to verify they fail**
 
 Run:
 
@@ -461,7 +461,7 @@ Run:
 
 Expected: FAIL — modules do not exist.
 
-- [ ] **Step 3: Implement the models**
+- [x] **Step 3: Implement the models**
 
 Create `models/video.py`:
 
@@ -507,7 +507,7 @@ class VoiceOutput(BaseModel):
     tracks: list[AudioTrack] = Field(default_factory=list)
 ```
 
-- [ ] **Step 4: Re-export models from `models/__init__.py`**
+- [x] **Step 4: Re-export models from `models/__init__.py`**
 
 Modify `models/__init__.py`:
 
@@ -545,7 +545,7 @@ __all__ = [
 ]
 ```
 
-- [ ] **Step 5: Run tests to verify they pass**
+- [x] **Step 5: Run tests to verify they pass**
 
 Run:
 
@@ -554,7 +554,7 @@ Run:
 
 Expected: ALL PASS
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add models/video.py models/voice.py models/__init__.py tests/test_models/test_video.py tests/test_models/test_voice.py
