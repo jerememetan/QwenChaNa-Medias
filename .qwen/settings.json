@@ -9,7 +9,9 @@
       "Bash(xcopy *)",
       "Read(C:\\Users\\Jereme\\.qwen\\skills/**)",
       "Bash(rmdir *)",
-      "Bash(dir *)"
+      "Bash(dir *)",
+      "Bash(venv\\scripts\\python.exe *)",
+      "Bash(git add *)"
     ]
   },
   "$version": 4

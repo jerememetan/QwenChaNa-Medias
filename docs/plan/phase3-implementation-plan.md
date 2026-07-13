@@ -1028,7 +1028,7 @@ git commit -m "feat: implement VoiceAgent with cosyvoice-v3-plus and clear error
 - Modify: `backend/main.py`
 - Test: `tests/test_agents/test_video.py`, `tests/test_agents/test_voice.py` — add integration tests
 
-- [ ] **Step 1: Update `backend/main.py` to include Video and Voice agents**
+- [x] **Step 1: Update `backend/main.py` to include Video and Voice agents**
 
 Modify `backend/main.py`:
 
@@ -1087,13 +1087,13 @@ def create_production_app():
 app = create_production_app()
 ```
 
-- [ ] **Step 2: Run tests to verify they pass**
+- [x] **Step 2: Run tests to verify they pass**
 
 Run: `venv\Scripts\python.exe -m pytest tests/test_agents/test_video.py tests/test_agents/test_voice.py -v`
 
 Expected: ALL PASS
 
-- [ ] **Step 3: Commit**
+- [x] **Step 3: Commit**
 
 ```bash
 git add backend/main.py tests/test_agents/test_video.py tests/test_agents/test_voice.py
