@@ -39,8 +39,10 @@ class DashScopeVideoGenService(VideoGenService):
     """Concrete video generation service using Alibaba Cloud Model Studio Wan.
 
     Uses the ``dashscope`` Python SDK's VideoSynthesis for
-    text-to-video generation via the Wan model (wan2.7-t2v). Video generation is
-    asynchronous — this service submits the task and polls until complete.
+    text-to-video generation via the Wan model (wan2.7-t2v). Video
+    generation is asynchronous — this service submits the task and
+    polls until complete. The API key and optional base URL are set on
+    the dashscope module at instantiation time.
     """
 
     def __init__(self, config: VideoConfig) -> None:
@@ -48,6 +50,8 @@ class DashScopeVideoGenService(VideoGenService):
         self._configured = bool(config.api_key)
         if config.api_key:
             dashscope.api_key = config.api_key
+        if config.base_url:
+            dashscope.base_http_api_url = config.base_url.rstrip("/")
 
     @retry(
         reraise=True,

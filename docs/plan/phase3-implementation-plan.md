@@ -1109,13 +1109,13 @@ git commit -m "feat: wire Video and Voice agents into production app"
 - Run full test suite
 - Optionally: run a local end-to-end pipeline
 
-- [ ] **Step 1: Run all tests**
+- [x] **Step 1: Run all tests**
 
 Run: `venv\Scripts\python.exe -m pytest tests/ -v`
 
 Expected: ALL PASS
 
-- [ ] **Step 2: Run a local end-to-end pipeline**
+- [x] **Step 2: Run a local end-to-end pipeline**
 
 Note: This requires valid API keys for LLM, TTS, and video generation:
 
