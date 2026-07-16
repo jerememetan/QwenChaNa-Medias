@@ -39,9 +39,7 @@ class DashScopeTTSService(TTSService):
     """Concrete TTS service using Alibaba Cloud Model Studio CosyVoice.
 
     Uses the ``dashscope`` Python SDK's SpeechSynthesizer for
-    text-to-speech generation via the CosyVoice model. The API key is
-    set on the dashscope module at instantiation time, ensuring each
-    service instance carries its own credentials.
+    text-to-speech generation via the CosyVoice model.
     """
 
     def __init__(self, config: VoiceConfig) -> None:
@@ -49,8 +47,6 @@ class DashScopeTTSService(TTSService):
         self._configured = bool(config.api_key)
         if config.api_key:
             dashscope.api_key = config.api_key
-        if config.base_url:
-            dashscope.base_http_api_url = config.base_url.rstrip("/")
 
     @retry(
         reraise=True,

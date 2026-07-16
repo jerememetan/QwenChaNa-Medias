@@ -24,7 +24,6 @@ class VoiceConfig(BaseModel):
 
     provider: str = "dashscope"
     api_key: str = ""
-    base_url: str = ""
     model: str = "cosyvoice-v3-plus"
     voice: str = "longxiaochun"
 
@@ -34,7 +33,6 @@ class VideoConfig(BaseModel):
 
     provider: str = "dashscope"
     api_key: str = ""
-    base_url: str = ""
     model: str = "wan2.7-t2v"
 
 
@@ -67,14 +65,12 @@ class Settings(BaseSettings):
     # ---- Voice ----
     VOICE_PROVIDER: str = "dashscope"
     VOICE_API_KEY: str = ""
-    VOICE_BASE_URL: str = ""
     VOICE_MODEL: str = "cosyvoice-v3-plus"
     VOICE_VOICE: str = "longxiaochun"
 
     # ---- Video ----
     VIDEO_PROVIDER: str = "dashscope"
     VIDEO_API_KEY: str = ""
-    VIDEO_BASE_URL: str = ""
     VIDEO_MODEL: str = "wan2.7-t2v"
 
     # ---- Storage ----
@@ -100,7 +96,6 @@ class Settings(BaseSettings):
         return VoiceConfig(
             provider=self.VOICE_PROVIDER,
             api_key=self.VOICE_API_KEY,
-            base_url=self.VOICE_BASE_URL,
             model=self.VOICE_MODEL,
             voice=self.VOICE_VOICE,
         )
@@ -110,7 +105,6 @@ class Settings(BaseSettings):
         return VideoConfig(
             provider=self.VIDEO_PROVIDER,
             api_key=self.VIDEO_API_KEY,
-            base_url=self.VIDEO_BASE_URL,
             model=self.VIDEO_MODEL,
         )
 
