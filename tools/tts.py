@@ -1,6 +1,7 @@
 """TTS service abstraction — agents call this interface, never raw APIs."""
 
 from abc import ABC, abstractmethod
+from http import HTTPStatus
 from pathlib import Path
 
 import dashscope
@@ -40,13 +41,14 @@ class DashScopeTTSService(TTSService):
 
     Uses the ``dashscope`` Python SDK's SpeechSynthesizer for
     text-to-speech generation via the CosyVoice model.
+    
+    The service configures dashscope.base_http_api_url for workspace endpoints
+    and passes api_key explicitly to each call.
     """
 
     def __init__(self, config: VoiceConfig) -> None:
         self.config = config
         self._configured = bool(config.api_key)
-        if config.api_key:
-            dashscope.api_key = config.api_key
 
     @retry(
         reraise=True,
@@ -61,11 +63,17 @@ class DashScopeTTSService(TTSService):
                 "set VOICE_API_KEY in .env or pass api_key to VoiceConfig"
             )
 
+        # Set the workspace endpoint URL from config or default
+        dashscope.base_http_api_url = self.config.base_url or (
+            "https://ws-pd7pxz3ci9h4zpr0.ap-southeast-1.maas.aliyuncs.com/api/v1/services/audio/tts/customization"
+        )
+
         from dashscope.audio.tts_v2 import SpeechSynthesizer
 
         synthesizer = SpeechSynthesizer(
             model=self.config.model,
             voice=self.config.voice,
+            api_key=self.config.api_key,
         )
         audio_data = synthesizer.call(text)
 

@@ -1,6 +1,7 @@
 """Video generation service abstraction — agents call this interface, never raw APIs."""
 
 from abc import ABC, abstractmethod
+from http import HTTPStatus
 from pathlib import Path
 
 import dashscope
@@ -41,13 +42,14 @@ class DashScopeVideoGenService(VideoGenService):
     Uses the ``dashscope`` Python SDK's VideoSynthesis for
     text-to-video generation via the Wan model (wan2.7-t2v). Video generation is
     asynchronous — this service submits the task and polls until complete.
+    
+    The service configures dashscope.base_http_api_url for workspace endpoints
+    and passes api_key explicitly to each call.
     """
 
     def __init__(self, config: VideoConfig) -> None:
         self.config = config
         self._configured = bool(config.api_key)
-        if config.api_key:
-            dashscope.api_key = config.api_key
 
     @retry(
         reraise=True,
@@ -62,13 +64,31 @@ class DashScopeVideoGenService(VideoGenService):
                 "set VIDEO_API_KEY in .env or pass api_key to VideoConfig"
             )
 
-        from dashscope import VideoSynthesis
+        # Set the workspace endpoint URL from config or default
+        dashscope.base_http_api_url = self.config.base_url or (
+            "https://ws-pd7pxz3ci9h4zpr0.ap-southeast-1.maas.aliyuncs.com/api/v1"
+        )
 
-        response = VideoSynthesis.async_call(
+        response = dashscope.VideoSynthesis.async_call(
+            api_key=self.config.api_key,
             model=self.config.model,
             prompt=prompt,
         )
-        result = VideoSynthesis.wait(response)
+
+        if response.status_code != HTTPStatus.OK:
+            raise RuntimeError(
+                f"Video synthesis async_call failed: status_code={response.status_code}, "
+                f"code={response.code}, message={response.message}"
+            )
+
+        # Wait for task completion
+        result = dashscope.VideoSynthesis.wait(task=response, api_key=self.config.api_key)
+
+        if result.status_code != HTTPStatus.OK:
+            raise RuntimeError(
+                f"Video synthesis wait failed: status_code={result.status_code}, "
+                f"code={result.code}, message={result.message}"
+            )
 
         video_url = result.output.video_url
 

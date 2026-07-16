@@ -11,7 +11,9 @@
       "Bash(rmdir *)",
       "Bash(dir *)",
       "Bash(venv\\scripts\\python.exe *)",
-      "Bash(git add *)"
+      "Bash(git add *)",
+      "Bash(type *)",
+      "Bash(findstr *)"
     ]
   },
   "$version": 4
