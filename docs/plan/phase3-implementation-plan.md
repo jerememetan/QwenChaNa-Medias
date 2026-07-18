@@ -1129,15 +1129,7 @@ Set environment and run:
 set LLM_API_KEY=your_key_here
 set VOICE_API_KEY=your_key_here
 set VIDEO_API_KEY=your_key_here
-venv\Scripts\python.exe -c "
-from backend.main import create_production_app
-from fastapi.testclient import TestClient
-
-app = create_production_app()
-client = TestClient(app)
-resp = client.post('/generate', json={'prompt': 'A 30 second explainer about space'})
-print('Status:', resp.status_code)
-print('Response:', resp.json())
+./.venv/Scripts/python.exe run_test.py
 "
 ```
 
