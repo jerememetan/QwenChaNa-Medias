@@ -3,7 +3,7 @@ Quick helper to POST to /generate using the FastAPI TestClient.
 Run with your virtualenv Python (this repo uses `.venv`):
 
 PowerShell (no activation):
-    .\.venv\Scripts\python.exe run_test.py
+    .\venv\Scripts\python.exe run_test.py
 
 Git Bash / WSL:
     ./.venv/Scripts/python.exe run_test.py
