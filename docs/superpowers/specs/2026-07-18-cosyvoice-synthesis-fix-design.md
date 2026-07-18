@@ -11,7 +11,7 @@ This change fixes the TTS integration. Pipeline ordering remains sequential as r
 
 ## Scope
 
-- Keep the built-in `longqiang_v3` voice.
+- Use the built-in `longanhuan` voice, the female `cosyvoice-v3-plus` voice available in the Singapore region.
 - Keep the Singapore `cosyvoice-v3-plus` model.
 - Do not add voice cloning or voice-enrollment behavior.
 - Do not reorder or parallelize the pipeline.
@@ -70,4 +70,3 @@ Focused unit tests for `DashScopeTTSService` will verify:
 - Empty audio responses fail without creating a valid-looking artifact.
 
 Existing voice-agent and full test suites will then verify that the integration change does not alter agent contracts or pipeline behavior.
-

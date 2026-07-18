@@ -1,7 +1,6 @@
 """TTS service abstraction — agents call this interface, never raw APIs."""
 
 from abc import ABC, abstractmethod
-from http import HTTPStatus
 from pathlib import Path
 
 import dashscope
@@ -12,7 +11,10 @@ from backend.config import VoiceConfig
 
 
 def _is_transient_error(exc: BaseException) -> bool:
-    if isinstance(exc, (requests.exceptions.ConnectionError, requests.exceptions.Timeout)):
+    if isinstance(
+        exc,
+        (requests.exceptions.ConnectionError, requests.exceptions.Timeout),
+    ):
         return True
     if isinstance(exc, requests.exceptions.HTTPError) and exc.response is not None:
         return exc.response.status_code in {429, 502, 503, 504}
@@ -37,13 +39,10 @@ class TTSService(ABC):
 
 
 class DashScopeTTSService(TTSService):
-    """Concrete TTS service using Alibaba Cloud Model Studio CosyVoice.
+    """Generate CosyVoice speech through Alibaba Model Studio WebSockets.
 
     Uses the ``dashscope`` Python SDK's SpeechSynthesizer for
     text-to-speech generation via the CosyVoice model.
-    
-    The service configures dashscope.base_http_api_url for workspace endpoints
-    and passes api_key explicitly to each call.
     """
 
     def __init__(self, config: VoiceConfig) -> None:
@@ -63,19 +62,19 @@ class DashScopeTTSService(TTSService):
                 "set VOICE_API_KEY in .env or pass api_key to VoiceConfig"
             )
 
-        # Set the workspace endpoint URL from config or default
-        dashscope.base_http_api_url = self.config.base_url or (
-            "https://ws-pd7pxz3ci9h4zpr0.ap-southeast-1.maas.aliyuncs.com/api/v1/services/audio/tts/customization"
-        )
+        dashscope.api_key = self.config.api_key
+        if self.config.base_url:
+            dashscope.base_websocket_api_url = self.config.base_url.rstrip("/")
 
         from dashscope.audio.tts_v2 import SpeechSynthesizer
 
         synthesizer = SpeechSynthesizer(
             model=self.config.model,
             voice=self.config.voice,
-            api_key=self.config.api_key,
         )
         audio_data = synthesizer.call(text)
+        if not isinstance(audio_data, bytes) or not audio_data:
+            raise RuntimeError("Voice synthesis returned empty audio data")
 
         path = Path(output_path)
         path.parent.mkdir(parents=True, exist_ok=True)
