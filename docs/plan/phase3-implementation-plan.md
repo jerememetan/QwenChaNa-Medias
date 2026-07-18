@@ -1139,7 +1139,7 @@ Expected: `202` response and a job ID. Check `outputs/{job_id}/` for:
 - `video/clips/shot_001.mp4`
 - `voice/audio/scene_001.mp3`
 
-- [ ] **Step 3: Commit**
+- [x] **Step 3: Commit**
 
 ```bash
 git commit -m "chore: verify Phase 3 asset generation pipeline"
