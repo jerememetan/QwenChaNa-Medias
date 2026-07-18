@@ -1129,7 +1129,7 @@ Set environment and run:
 set LLM_API_KEY=your_key_here
 set VOICE_API_KEY=your_key_here
 set VIDEO_API_KEY=your_key_here
-./.venv/Scripts/python.exe run_test.py
+./venv/Scripts/python.exe run_test.py
 "
 ```
 
