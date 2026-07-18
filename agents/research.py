@@ -47,15 +47,37 @@ class ResearchAgent:
         brief = CreativeBrief.model_validate(
             context.agent_results[AgentName.DIRECTOR].output_data
         )
-        prompt = RESEARCH_PROMPT_TEMPLATE.format(brief_json=brief.model_dump_json())
-        raw_response = self.llm_service.generate(prompt, self.name)
+        if not brief.requires_research:
+            notes = ResearchNotes(
+                brief_summary=(
+                    f"Research skipped for creative prompt: {brief.summary}"
+                ),
+                notes=[],
+                overall_confidence=0.0,
+            )
+        else:
+            prompt = RESEARCH_PROMPT_TEMPLATE.format(
+                brief_json=brief.model_dump_json()
+            )
+            raw_response = self.llm_service.generate(prompt, self.name)
 
-        try:
-            notes = ResearchNotes.model_validate_json(raw_response)
-        except Exception as exc:
-            raise ValueError(
-                f"Research agent failed to parse LLM response as ResearchNotes: {exc}"
-            ) from exc
+            try:
+                notes = ResearchNotes.model_validate_json(raw_response)
+            except Exception as exc:
+                raise ValueError(
+                    "Research agent failed to parse LLM response as "
+                    f"ResearchNotes: {exc}"
+                ) from exc
+            notes = notes.model_copy(
+                update={
+                    "notes": [
+                        note.model_copy(
+                            update={"source": None, "verified": False}
+                        )
+                        for note in notes.notes
+                    ]
+                }
+            )
 
         if self.storage is not None:
             self.storage.save(

@@ -11,7 +11,9 @@ from tools.llm import LLMService
 from storage.base import StorageBackend
 
 
-def _make_context_with_brief() -> WorkflowState:
+def _make_context_with_brief(
+    requires_research: bool = True,
+) -> WorkflowState:
     ctx = WorkflowState(job_id="test-job", prompt="Create a 30s explainer about AI")
     brief = CreativeBrief(
         title="AI Explainer",
@@ -20,6 +22,7 @@ def _make_context_with_brief() -> WorkflowState:
         audience="general",
         duration_seconds=30.0,
         summary="A brief overview of artificial intelligence",
+        requires_research=requires_research,
     )
     ctx.agent_results[AgentName.DIRECTOR] = AgentResult(
         agent_name=AgentName.DIRECTOR,
@@ -64,6 +67,38 @@ class TestResearchAgent:
         notes = ResearchNotes.model_validate(output_data)
         assert notes.brief_summary == "AI overview"
         assert len(notes.notes) == 1
+
+    def test_creative_brief_skips_llm_and_emits_empty_notes(self):
+        llm = MagicMock(spec=LLMService)
+
+        result = ResearchAgent(llm).run(
+            _make_context_with_brief(requires_research=False)
+        )
+
+        llm.generate.assert_not_called()
+        notes = ResearchNotes.model_validate(
+            result.agent_results[AgentName.RESEARCH].output_data
+        )
+        assert notes.notes == []
+        assert notes.overall_confidence == 0.0
+        assert "skipped" in notes.brief_summary.lower()
+
+    def test_llm_only_research_cannot_claim_sources_or_verification(self):
+        response = (
+            '{"brief_summary":"Facts","notes":[{"topic":"Claim",'
+            '"content":"Content","source":"Example University",'
+            '"verified":true}],"overall_confidence":0.9}'
+        )
+
+        result = ResearchAgent(_mock_llm_service(response)).run(
+            _make_context_with_brief(requires_research=True)
+        )
+
+        notes = ResearchNotes.model_validate(
+            result.agent_results[AgentName.RESEARCH].output_data
+        )
+        assert notes.notes[0].source is None
+        assert notes.notes[0].verified is False
 
     def test_run_raises_when_director_output_missing(self):
         agent = ResearchAgent(llm_service=_mock_llm_service("irrelevant"))
