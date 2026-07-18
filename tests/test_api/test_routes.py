@@ -2,15 +2,19 @@
 
 import uuid
 from datetime import datetime, timezone
+from pathlib import Path
 from unittest.mock import MagicMock
 
 from fastapi.testclient import TestClient
 
+from agents.base import BaseAgent
 from agents.director import DirectorAgent
 from agents.research import ResearchAgent
 from agents.script import ScriptAgent
 from agents.storyboard import StoryboardAgent
 from backend.api.routes import create_app
+from models.agent_result import AgentResult, ArtifactRef
+from models.editor import EditorOutput
 from models.enums import AgentName, JobStatus
 from models.job import JobRecord
 from models.workflow_state import WorkflowState
@@ -48,6 +52,41 @@ def _make_test_app():
     app = create_app(storage=storage, job_store=job_store)
     client = TestClient(app)
     return client, storage, job_store
+
+
+def _complete_with_editor_result(client, storage, job_store, tmp_path):
+    response = client.post("/generate", json={"prompt": "test video"})
+    job_id = response.json()["job_id"]
+    final_path = tmp_path / job_id / "editor" / "final" / "final_video.mp4"
+    final_path.parent.mkdir(parents=True, exist_ok=True)
+    final_path.write_bytes(b"final-mp4")
+    output = EditorOutput(final_path=str(final_path), scene_count=1)
+    context = WorkflowState(
+        job_id=job_id,
+        prompt="test video",
+        status=JobStatus.COMPLETED,
+    )
+    context.agent_results[AgentName.EDITOR] = AgentResult(
+        agent_name=AgentName.EDITOR,
+        success=True,
+        output_data=output.model_dump(mode="json"),
+        artifacts=[
+            ArtifactRef(
+                agent_name=AgentName.EDITOR,
+                filename="final/final_video.mp4",
+                content_type="video/mp4",
+                size_bytes=9,
+            )
+        ],
+    )
+    storage.save(
+        job_id,
+        "pipeline",
+        "context.json",
+        context.model_dump(mode="json"),
+    )
+    job_store[job_id].status = JobStatus.COMPLETED
+    return job_id, final_path
 
 
 class TestGenerateEndpoint:
@@ -102,22 +141,50 @@ class TestStatusEndpoint:
 
 
 class TestResultEndpoint:
-    def test_result_returns_output_for_completed_job(self):
+    def test_result_returns_output_for_completed_job(self, tmp_path):
         client, storage, job_store = _make_test_app()
-        gen_response = client.post("/generate", json={"prompt": "test video"})
-        job_id = gen_response.json()["job_id"]
-        # Mark job as completed
-        job_store[job_id].status = JobStatus.COMPLETED
-        # Save context to storage so result can find output path
-        ctx = WorkflowState(job_id=job_id, prompt="test video")
-        ctx.status = JobStatus.COMPLETED
-        storage.save(job_id, "pipeline", "context.json", ctx.model_dump(mode="json"))
-        # Check result
+        job_id, final_path = _complete_with_editor_result(
+            client,
+            storage,
+            job_store,
+            tmp_path,
+        )
         response = client.get(f"/result/{job_id}")
         assert response.status_code == 200
         data = response.json()
         assert data["job_id"] == job_id
         assert data["status"] == "completed"
+        assert data["output_path"] == str(final_path)
+        assert data["download_url"] == f"/result/{job_id}/download"
+
+    def test_download_returns_final_mp4(self, tmp_path):
+        client, storage, job_store = _make_test_app()
+        job_id, _ = _complete_with_editor_result(
+            client,
+            storage,
+            job_store,
+            tmp_path,
+        )
+
+        response = client.get(f"/result/{job_id}/download")
+
+        assert response.status_code == 200
+        assert response.headers["content-type"].startswith("video/mp4")
+        assert response.content == b"final-mp4"
+
+    def test_download_returns_404_when_final_file_is_missing(self, tmp_path):
+        client, storage, job_store = _make_test_app()
+        job_id, final_path = _complete_with_editor_result(
+            client,
+            storage,
+            job_store,
+            tmp_path,
+        )
+        final_path.unlink()
+
+        response = client.get(f"/result/{job_id}/download")
+
+        assert response.status_code == 404
 
     def test_result_returns_404_for_unknown_job(self):
         client, _, _ = _make_test_app()
@@ -132,24 +199,59 @@ class TestResultEndpoint:
         response = client.get(f"/result/{job_id}")
         assert response.status_code == 409
 
+    def test_result_returns_404_when_completed_job_has_no_editor_result(self):
+        client, storage, job_store = _make_test_app()
+        response = client.post("/generate", json={"prompt": "test video"})
+        job_id = response.json()["job_id"]
+        job_store[job_id].status = JobStatus.COMPLETED
+        context = WorkflowState(
+            job_id=job_id,
+            prompt="test video",
+            status=JobStatus.COMPLETED,
+        )
+        storage.save(
+            job_id,
+            "pipeline",
+            "context.json",
+            context.model_dump(mode="json"),
+        )
+
+        response = client.get(f"/result/{job_id}")
+
+        assert response.status_code == 404
+        assert response.json()["detail"] == "Final video result not found"
 
 class TestResumeEndpoint:
-    def test_resume_returns_202(self):
-        client, storage, job_store = _make_test_app()
-        gen_response = client.post("/generate", json={"prompt": "test video"})
-        job_id = gen_response.json()["job_id"]
-        # Mark job as failed
-        job_store[job_id].status = JobStatus.FAILED
-        # Save context so resume can load it
-        ctx = WorkflowState(job_id=job_id, prompt="test video")
-        ctx.status = JobStatus.FAILED
-        ctx.failed_agent = AgentName.RESEARCH
-        ctx.error = "Agent research failed"
-        storage.save(job_id, "pipeline", "context.json", ctx.model_dump(mode="json"))
-        # Resume
+    def test_resume_executes_remaining_agents_and_updates_job_status(self):
+        storage = InMemoryStorage()
+        job_store: dict[str, JobRecord] = {}
+        call_order: list[AgentName] = []
+        app = create_app(
+            storage=storage,
+            job_store=job_store,
+            agents=[CompletingEditor(call_order)],
+        )
+        client = TestClient(app)
+        job_id = _failed_editor_job(storage, job_store)
+
         response = client.post(f"/resume/{job_id}")
+
         assert response.status_code == 202
-        assert response.json()["job_id"] == job_id
+        assert call_order == [AgentName.EDITOR]
+        assert job_store[job_id].status == JobStatus.COMPLETED
+        assert job_store[job_id].failed_agent is None
+        assert job_store[job_id].error is None
+
+    def test_resume_returns_503_without_configured_agents(self):
+        storage = InMemoryStorage()
+        job_store: dict[str, JobRecord] = {}
+        app = create_app(storage=storage, job_store=job_store)
+        client = TestClient(app)
+        job_id = _failed_editor_job(storage, job_store)
+
+        response = client.post(f"/resume/{job_id}")
+
+        assert response.status_code == 503
 
     def test_resume_returns_404_for_unknown_job(self):
         client, _, _ = _make_test_app()
@@ -177,6 +279,85 @@ def _mock_llm_service(*responses: str) -> MagicMock:
     mock = MagicMock(spec=LLMService)
     mock.generate.side_effect = responses
     return mock
+
+
+class CompletingEditor(BaseAgent):
+    """Record resume execution and finish Editor without media work."""
+
+    name = AgentName.EDITOR
+
+    def __init__(self, call_order: list[AgentName]) -> None:
+        self.call_order = call_order
+        super().__init__()
+
+    def run(self, context: WorkflowState) -> WorkflowState:
+        self.call_order.append(self.name)
+        context.agent_results[self.name] = AgentResult(
+            agent_name=self.name,
+            success=True,
+            output_data={"final_path": "final.mp4", "scene_count": 1},
+        )
+        return context
+
+
+def _failed_editor_job(storage, job_store) -> str:
+    job_id = "resume-editor-job"
+    context = WorkflowState(
+        job_id=job_id,
+        prompt="test",
+        status=JobStatus.FAILED,
+        failed_agent=AgentName.EDITOR,
+        error="FFmpeg unavailable",
+    )
+    storage.save(
+        job_id,
+        "pipeline",
+        "context.json",
+        context.model_dump(mode="json"),
+    )
+    job_store[job_id] = JobRecord(
+        job_id=job_id,
+        prompt="test",
+        status=JobStatus.FAILED,
+        failed_agent=AgentName.EDITOR,
+        error="FFmpeg unavailable",
+    )
+    return job_id
+
+
+class ResultEditorAgent(BaseAgent):
+    """Write a deterministic final artifact for route integration tests."""
+
+    name = AgentName.EDITOR
+
+    def __init__(self, output_root: Path) -> None:
+        self.output_root = output_root
+        super().__init__()
+
+    def run(self, context: WorkflowState) -> WorkflowState:
+        final_path = (
+            self.output_root
+            / context.job_id
+            / "editor"
+            / "final"
+            / "final_video.mp4"
+        )
+        final_path.parent.mkdir(parents=True, exist_ok=True)
+        final_path.write_bytes(b"final-mp4")
+        output = EditorOutput(final_path=str(final_path), scene_count=1)
+        context.agent_results[self.name] = AgentResult(
+            agent_name=self.name,
+            success=True,
+            output_data=output.model_dump(mode="json"),
+            artifacts=[
+                ArtifactRef(
+                    agent_name=self.name,
+                    filename="final/final_video.mp4",
+                    content_type="video/mp4",
+                )
+            ],
+        )
+        return context
 
 
 class TestGeneratePipelineExecution:
@@ -257,7 +438,7 @@ class TestStatusConsistency:
         assert data["status"] == "failed"
         assert data["failed_agent"] == "director"
 
-    def test_result_returns_200_for_completed_job_with_artifacts(self):
+    def test_result_returns_200_for_completed_job_with_artifacts(self, tmp_path):
         """When pipeline completes, /result should return artifacts from all agents."""
         brief_json = '{"title":"T","prompt":"P","tone":"t","audience":"a","duration_seconds":10.0,"summary":"s"}'
         research_json = '{"brief_summary":"s","notes":[],"overall_confidence":0.5}'
@@ -272,6 +453,7 @@ class TestStatusConsistency:
             ResearchAgent(llm_service=mock_llm, storage=storage),
             ScriptAgent(llm_service=mock_llm, storage=storage),
             StoryboardAgent(llm_service=mock_llm, storage=storage),
+            ResultEditorAgent(tmp_path),
         ]
         app = create_app(storage=storage, job_store=job_store, agents=agents)
         client = TestClient(app)
@@ -283,4 +465,4 @@ class TestStatusConsistency:
         assert result_resp.status_code == 200
         data = result_resp.json()
         assert data["status"] == "completed"
-        assert len(data["artifacts"]) == 4
+        assert len(data["artifacts"]) == 5

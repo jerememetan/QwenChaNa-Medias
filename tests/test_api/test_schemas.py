@@ -74,13 +74,15 @@ class TestResultResponse:
         resp = ResultResponse(
             job_id="abc-123",
             status=JobStatus.COMPLETED,
-            output_path="./outputs/abc-123",
+            output_path="./outputs/abc-123/editor/final/final_video.mp4",
+            download_url="/result/abc-123/download",
             artifacts=[],
         )
         data = resp.model_dump()
         assert data["job_id"] == "abc-123"
         assert data["status"] == JobStatus.COMPLETED
-        assert data["output_path"] == "./outputs/abc-123"
+        assert data["output_path"] == "./outputs/abc-123/editor/final/final_video.mp4"
+        assert data["download_url"] == "/result/abc-123/download"
         assert data["artifacts"] == []
 
 

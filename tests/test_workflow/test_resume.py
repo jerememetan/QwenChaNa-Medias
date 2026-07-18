@@ -8,6 +8,7 @@ from models.enums import AgentName, JobStatus
 from models.workflow_state import WorkflowState
 from storage.local import LocalStorage
 from workflow.resume import resume_job
+from workflow.pipeline import Pipeline
 
 
 class StubAgent(BaseAgent):
@@ -180,3 +181,21 @@ class TestResumePersistence:
         loaded = storage.load("persist-resume", "pipeline", "context.json")
         assert loaded is not None
         assert loaded["status"] == "completed"
+
+
+def test_resume_after_editor_failure_skips_all_upstream_agents(tmp_path):
+    storage = LocalStorage(str(tmp_path))
+    first_agents = _make_stub_agents(
+        ALL_AGENTS,
+        should_fail=AgentName.EDITOR,
+    )
+    initial = WorkflowState(job_id="editor-retry", prompt="test")
+    failed = Pipeline(storage).run("editor-retry", first_agents, initial)
+    assert failed.failed_agent == AgentName.EDITOR
+
+    call_order: list[AgentName] = []
+    retry_agents = _make_stub_agents(ALL_AGENTS, call_order=call_order)
+    resumed = resume_job("editor-retry", retry_agents, storage)
+
+    assert call_order == [AgentName.EDITOR]
+    assert resumed.status == JobStatus.COMPLETED

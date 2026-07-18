@@ -15,6 +15,8 @@ from agents.script import ScriptAgent
 from agents.storyboard import StoryboardAgent
 from agents.video import VideoAgent
 from agents.voice import VoiceAgent
+from agents.editor import EditorAgent
+from tools.ffmpeg import LocalFFmpegService
 
 
 def create_production_app():
@@ -25,6 +27,7 @@ def create_production_app():
     llm_service = AlibabaCloudLLMService(settings.llm)
     tts_service = DashScopeTTSService(settings.voice)
     video_service = DashScopeVideoGenService(settings.video)
+    ffmpeg_service = LocalFFmpegService()
 
     fallback_enabled = os.environ.get("FALLBACK_STUBS", "false").lower() == "true"
 
@@ -42,6 +45,11 @@ def create_production_app():
             tts_service=tts_service,
             storage=storage,
             fallback_enabled=fallback_enabled,
+        ),
+        EditorAgent(
+            ffmpeg_service=ffmpeg_service,
+            storage=storage,
+            output_dir=settings.storage.output_dir,
         ),
     ]
 

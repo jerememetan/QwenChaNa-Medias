@@ -39,6 +39,7 @@ class ResultResponse(BaseModel):
     job_id: str
     status: JobStatus
     output_path: str
+    download_url: str
     artifacts: list[ArtifactRef]
 
 
