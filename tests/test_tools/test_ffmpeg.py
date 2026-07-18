@@ -94,6 +94,41 @@ def test_render_uses_narration_duration_when_audio_is_longer(tmp_path):
     assert command[command.index("-t") + 1] == "3.000000"
 
 
+def test_render_trims_every_clip_before_concat(tmp_path):
+    first = tmp_path / "shot_001.mp4"
+    second = tmp_path / "shot_002.mp4"
+    audio = tmp_path / "scene.mp3"
+    for path in (first, second, audio):
+        path.write_bytes(b"media")
+    scene = SceneMedia(
+        scene_number=1,
+        clips=[
+            ClipMedia(
+                shot_number=1,
+                file_path=str(first),
+                planned_duration=0.65,
+            ),
+            ClipMedia(
+                shot_number=2,
+                file_path=str(second),
+                planned_duration=4.35,
+            ),
+        ],
+        narration_path=str(audio),
+        planned_duration=5.0,
+    )
+    service = RecordingFFmpegService(narration_duration=1.0)
+
+    service.assemble([scene], str(tmp_path / "final.mp4"))
+
+    command = service.commands[0]
+    filters = command[command.index("-filter_complex") + 1]
+    assert "trim=duration=0.650000" in filters
+    assert "trim=duration=4.350000" in filters
+    assert "concat=n=2:v=1:a=0" in filters
+    assert command[command.index("-t") + 1] == "5.000000"
+
+
 def test_assemble_rejects_missing_input_file(tmp_path):
     service = RecordingFFmpegService()
     scene = SceneMedia(
