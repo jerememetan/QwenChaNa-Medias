@@ -18,6 +18,30 @@ cp .env.example .env
 uvicorn backend.main:app --reload
 ```
 
+`imageio-ffmpeg` installs a bundled FFmpeg executable, so Windows users do not
+need a separate FFmpeg installation.
+
+## Final Output
+
+Successful jobs produce:
+
+```text
+outputs/{job_id}/editor/final/final_video.mp4
+```
+
+- `GET /result/{job_id}` returns final artifact metadata.
+- `GET /result/{job_id}/download` downloads the MP4.
+- `POST /resume/{job_id}` resumes a failed job from its first incomplete agent.
+
+Run quota-free tests with:
+
+```powershell
+venv\Scripts\python.exe -m pytest tests/ -v
+```
+
+`run_test.py` calls live Alibaba models and consumes quota; use it only for an
+intentional live smoke test.
+
 ## Architecture
 
 See [docs/architecture.md](docs/architecture.md) for the full system design.

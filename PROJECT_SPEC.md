@@ -303,10 +303,10 @@ qwenchana-medias/
 
 ### Phase 4 — Assembly (Week 4)
 
-- [ ] Implement **Editor Agent** (FFmpeg-based stitching).
-- [ ] End-to-end pipeline test: prompt → MP4.
-- [ ] Resume-from-failure testing.
-- [ ] Basic error handling and job status tracking.
+- [x] Implement **Editor Agent** (FFmpeg-based stitching).
+- [x] End-to-end pipeline test: prompt → MP4.
+- [x] Resume-from-failure testing.
+- [x] Basic error handling and job status tracking.
 
 ### Phase 5 — LangGraph Migration (Week 5+)
 
