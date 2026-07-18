@@ -74,6 +74,38 @@ class TestDirectorAgent:
         call_prompt = mock_llm.generate.call_args.args[0]
         assert "My custom video prompt" in call_prompt
 
+    def test_run_stores_explicit_counts_and_research_requirement(self):
+        brief_json = (
+            '{"title":"Voxel clip","prompt":"Make exactly one scene and one shot",'
+            '"tone":"playful","audience":"general","duration_seconds":5.0,'
+            '"summary":"A voxel reveal","requested_scene_count":1,'
+            '"requested_shot_count":1,"requires_research":false}'
+        )
+        agent = DirectorAgent(llm_service=_mock_llm_service(brief_json))
+
+        result = agent.run(
+            _make_context("Make exactly one scene and one shot")
+        )
+
+        brief = CreativeBrief.model_validate(
+            result.agent_results[AgentName.DIRECTOR].output_data
+        )
+        assert brief.requested_scene_count == 1
+        assert brief.requested_shot_count == 1
+        assert brief.requires_research is False
+
+    def test_prompt_tells_director_not_to_invent_counts(self):
+        mock_llm = _mock_llm_service(
+            '{"title":"T","prompt":"P","tone":"clear",'
+            '"audience":"general","duration_seconds":5,"summary":"S"}'
+        )
+
+        DirectorAgent(mock_llm).run(_make_context("Make a short clip"))
+
+        prompt = mock_llm.generate.call_args.args[0]
+        assert "only when the user states" in prompt
+        assert "requires_research" in prompt
+
     def test_run_persists_brief_json_to_storage(self):
         brief_json = '{"title":"AI Explainer","prompt":"Create a 30-second explainer about AI","tone":"informative","audience":"general","duration_seconds":30.0,"summary":"A brief overview of artificial intelligence"}'
         mock_llm = _mock_llm_service(brief_json)

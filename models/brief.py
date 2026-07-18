@@ -10,3 +10,6 @@ class CreativeBrief(BaseModel):
     summary: str
     aspect_ratio: str = "16:9"
     style_keywords: list[str] = Field(default_factory=list)
+    requested_scene_count: int | None = Field(default=None, ge=1)
+    requested_shot_count: int | None = Field(default=None, ge=1)
+    requires_research: bool = True

@@ -19,8 +19,15 @@ Given the user's prompt, produce a creative brief as JSON matching this exact sc
   "duration_seconds": number — target video length in seconds (must be > 0),
   "summary": string — one-sentence summary of the video concept,
   "aspect_ratio": string — optional, default "16:9",
-  "style_keywords": list of strings — optional visual style tags
+  "style_keywords": list of strings — optional visual style tags,
+  "requested_scene_count": integer or null — copy an exact scene count only when the user states one explicitly,
+  "requested_shot_count": integer or null — copy an exact total shot count only when the user states one explicitly,
+  "requires_research": boolean — false for fictional, aesthetic, promotional, or purely creative work; true when factual claims are needed
 }}
+
+Do not infer scene or shot counts from duration. Set them only when the user states
+an exact count. Preserve explicit constraints even if another structure might be more
+cinematic.
 
 User prompt: {prompt}
 
