@@ -5,7 +5,7 @@ from pathlib import Path
 from typing import Any
 
 from models.agent_result import AgentResult, ArtifactRef
-from models.editor import EditorOutput, SceneMedia
+from models.editor import ClipMedia, EditorOutput, SceneMedia
 from models.enums import AgentName
 from models.storyboard import Storyboard
 from models.video import VideoOutput
@@ -124,13 +124,17 @@ class EditorAgent:
                 f"Editor is missing video clip for shot {missing_clips[0]}"
             )
 
-        grouped: dict[int, list[str]] = defaultdict(list)
+        grouped: dict[int, list[ClipMedia]] = defaultdict(list)
         scene_order: list[int] = []
         for shot in storyboard.shots:
             if shot.scene_number not in grouped:
                 scene_order.append(shot.scene_number)
             grouped[shot.scene_number].append(
-                clips[shot.shot_number].file_path
+                ClipMedia(
+                    shot_number=shot.shot_number,
+                    file_path=clips[shot.shot_number].file_path,
+                    planned_duration=shot.duration,
+                )
             )
 
         scenes: list[SceneMedia] = []
@@ -140,7 +144,7 @@ class EditorAgent:
                     f"Editor is missing narration for scene {scene_number}"
                 )
             paths = [
-                *grouped[scene_number],
+                *(clip.file_path for clip in grouped[scene_number]),
                 tracks[scene_number].file_path,
             ]
             missing_files = [path for path in paths if not Path(path).is_file()]
@@ -151,8 +155,12 @@ class EditorAgent:
             scenes.append(
                 SceneMedia(
                     scene_number=scene_number,
-                    clip_paths=grouped[scene_number],
+                    clips=grouped[scene_number],
                     narration_path=tracks[scene_number].file_path,
+                    planned_duration=sum(
+                        clip.planned_duration
+                        for clip in grouped[scene_number]
+                    ),
                 )
             )
         return scenes

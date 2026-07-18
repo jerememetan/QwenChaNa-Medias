@@ -104,8 +104,11 @@ def test_editor_groups_clips_by_scene_in_storyboard_order(tmp_path):
 
     scenes = service.assemble.call_args.args[0]
     assert [scene.scene_number for scene in scenes] == [1, 2]
-    assert len(scenes[0].clip_paths) == 2
-    assert len(scenes[1].clip_paths) == 1
+    assert [clip.shot_number for clip in scenes[0].clips] == [1, 2]
+    assert [clip.planned_duration for clip in scenes[0].clips] == [5.0, 5.0]
+    assert len(scenes[1].clips) == 1
+    assert scenes[0].planned_duration == 10.0
+    assert scenes[1].planned_duration == 5.0
 
 
 def test_editor_writes_result_metadata_and_artifact(tmp_path):
