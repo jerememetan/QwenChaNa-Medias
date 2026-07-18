@@ -12,7 +12,9 @@ from tools.llm import LLMService
 from storage.base import StorageBackend
 
 
-def _make_context_with_upstream() -> WorkflowState:
+def _make_context_with_upstream(
+    requested_scene_count: int | None = None,
+) -> WorkflowState:
     ctx = WorkflowState(job_id="test-job", prompt="Create a 30s explainer about AI")
     brief = CreativeBrief(
         title="AI Explainer",
@@ -21,6 +23,7 @@ def _make_context_with_upstream() -> WorkflowState:
         audience="general",
         duration_seconds=30.0,
         summary="A brief overview of AI",
+        requested_scene_count=requested_scene_count,
     )
     ctx.agent_results[AgentName.DIRECTOR] = AgentResult(
         agent_name=AgentName.DIRECTOR, success=True, output_data=brief.model_dump(mode="json"),
@@ -71,6 +74,61 @@ class TestScriptAgent:
         assert script.title == "AI Explainer"
         assert len(script.scenes) == 1
         assert script.scenes[0].narration == "AI is transforming the world"
+
+    def test_prompt_includes_explicit_scene_count(self):
+        response = (
+            '{"title":"T","scenes":[{"scene_number":1,'
+            '"narration":"N","duration_hint":30,"visual_direction":"V"}]}'
+        )
+        llm = _mock_llm_service(response)
+
+        ScriptAgent(llm).run(
+            _make_context_with_upstream(requested_scene_count=1)
+        )
+
+        assert "exactly 1 scene" in llm.generate.call_args_list[0].args[0]
+
+    def test_scene_count_mismatch_gets_one_correction(self):
+        two_scenes = (
+            '{"title":"T","scenes":['
+            '{"scene_number":1,"narration":"A","duration_hint":15,'
+            '"visual_direction":"A"},'
+            '{"scene_number":2,"narration":"B","duration_hint":15,'
+            '"visual_direction":"B"}]}'
+        )
+        one_scene = (
+            '{"title":"T","scenes":[{"scene_number":1,'
+            '"narration":"A","duration_hint":30,"visual_direction":"A"}]}'
+        )
+        llm = MagicMock(spec=LLMService)
+        llm.generate.side_effect = [two_scenes, one_scene]
+
+        result = ScriptAgent(llm).run(
+            _make_context_with_upstream(requested_scene_count=1)
+        )
+
+        assert llm.generate.call_count == 2
+        assert len(
+            result.agent_results[AgentName.SCRIPT].output_data["scenes"]
+        ) == 1
+        assert "exactly 1" in llm.generate.call_args_list[1].args[0]
+
+    def test_second_scene_count_mismatch_fails(self):
+        two_scenes = (
+            '{"title":"T","scenes":['
+            '{"scene_number":1,"narration":"A","duration_hint":15,'
+            '"visual_direction":"A"},'
+            '{"scene_number":2,"narration":"B","duration_hint":15,'
+            '"visual_direction":"B"}]}'
+        )
+        llm = MagicMock(spec=LLMService)
+        llm.generate.side_effect = [two_scenes, two_scenes]
+
+        with pytest.raises(ValueError, match="exactly 1 scene"):
+            ScriptAgent(llm).run(
+                _make_context_with_upstream(requested_scene_count=1)
+            )
+        assert llm.generate.call_count == 2
 
     def test_run_raises_when_director_missing(self):
         agent = ScriptAgent(llm_service=_mock_llm_service("irrelevant"))

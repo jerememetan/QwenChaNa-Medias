@@ -36,6 +36,7 @@ Produce a script as JSON matching this exact schema:
 }}
 
 Total scene durations should approximately match the brief's duration_seconds ({duration_target}s).
+{scene_count_rule}
 Respond ONLY with valid JSON. No explanation, no markdown, no commentary."""
 
 
@@ -45,6 +46,28 @@ class ScriptAgent:
     def __init__(self, llm_service: LLMService, storage: StorageBackend | None = None) -> None:
         self.llm_service = llm_service
         self.storage = storage
+
+    @staticmethod
+    def _parse(raw_response: str) -> Script:
+        try:
+            return Script.model_validate_json(raw_response)
+        except Exception as exc:
+            raise ValueError(
+                f"Script agent failed to parse LLM response as Script: {exc}"
+            ) from exc
+
+    @staticmethod
+    def _count_error(
+        script: Script,
+        requested_count: int | None,
+    ) -> str | None:
+        if requested_count is None or len(script.scenes) == requested_count:
+            return None
+        noun = "scene" if requested_count == 1 else "scenes"
+        return (
+            f"Script must contain exactly {requested_count} {noun}; "
+            f"received {len(script.scenes)}"
+        )
 
     def run(self, context: WorkflowState) -> WorkflowState:
         if AgentName.DIRECTOR not in context.agent_results:
@@ -59,19 +82,32 @@ class ScriptAgent:
             context.agent_results[AgentName.RESEARCH].output_data
         )
 
+        scene_count_rule = (
+            f"Produce exactly {brief.requested_scene_count} "
+            f"{'scene' if brief.requested_scene_count == 1 else 'scenes'}."
+            if brief.requested_scene_count is not None
+            else "Choose the scene count that best fits the brief."
+        )
         prompt = SCRIPT_PROMPT_TEMPLATE.format(
             brief_json=brief.model_dump_json(),
             research_json=research.model_dump_json(),
             duration_target=brief.duration_seconds,
+            scene_count_rule=scene_count_rule,
         )
         raw_response = self.llm_service.generate(prompt, self.name)
-
-        try:
-            script = Script.model_validate_json(raw_response)
-        except Exception as exc:
-            raise ValueError(
-                f"Script agent failed to parse LLM response as Script: {exc}"
-            ) from exc
+        script = self._parse(raw_response)
+        error = self._count_error(script, brief.requested_scene_count)
+        if error is not None:
+            correction_prompt = (
+                f"{prompt}\n\nYour previous JSON violated this constraint: "
+                f"{error}. Return a corrected complete Script JSON object only."
+            )
+            script = self._parse(
+                self.llm_service.generate(correction_prompt, self.name)
+            )
+            error = self._count_error(script, brief.requested_scene_count)
+            if error is not None:
+                raise ValueError(error)
 
         if self.storage is not None:
             self.storage.save(
