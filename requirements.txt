@@ -15,7 +15,8 @@ tenacity>=8.0
 dashscope>=1.20
 
 # ---- Media Processing ----
-ffmpeg-python>=0.2
+# Platform wheels bundle FFmpeg, avoiding a separate system install on Windows.
+imageio-ffmpeg>=0.6
 
 # ---- Testing ----
 pytest>=8.0
