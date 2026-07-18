@@ -2,6 +2,7 @@
 
 from abc import ABC, abstractmethod
 from pathlib import Path
+import re
 import shutil
 import subprocess
 import tempfile
@@ -63,6 +64,7 @@ class LocalFFmpegService(FFmpegService):
                     )
 
     def _render_scene(self, scene: SceneMedia, output: Path) -> None:
+        narration_duration = self._probe_duration(Path(scene.narration_path))
         command = [self.executable, "-y"]
         for clip_path in scene.clip_paths:
             command.extend(["-i", clip_path])
@@ -120,13 +122,42 @@ class LocalFFmpegService(FFmpegService):
                 "48000",
                 "-ac",
                 "2",
-                "-shortest",
+                "-t",
+                f"{narration_duration:.6f}",
                 "-movflags",
                 "+faststart",
                 str(output),
             ]
         )
         self._run(command, f"render scene {scene.scene_number}")
+
+    def _probe_duration(self, path: Path) -> float:
+        try:
+            completed = subprocess.run(
+                [self.executable, "-hide_banner", "-i", str(path)],
+                capture_output=True,
+                text=True,
+                check=False,
+            )
+        except OSError as exc:
+            raise FFmpegError(
+                f"Unable to launch FFmpeg to inspect {path}: {exc}"
+            ) from exc
+
+        match = re.search(
+            r"Duration:\s*(\d+):(\d+):(\d+(?:\.\d+)?)",
+            completed.stderr,
+        )
+        if match is None:
+            detail = completed.stderr.strip()[-1000:] or "no stderr output"
+            raise FFmpegError(
+                f"Could not determine duration for {path}: {detail}"
+            )
+        hours, minutes, seconds = match.groups()
+        duration = int(hours) * 3600 + int(minutes) * 60 + float(seconds)
+        if duration <= 0:
+            raise FFmpegError(f"Invalid duration for {path}: {duration}")
+        return duration
 
     def _concat_scenes(self, scene_paths: list[Path], output: Path) -> None:
         if len(scene_paths) == 1:

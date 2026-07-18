@@ -21,7 +21,7 @@ import sys
 def main():
     app = create_production_app()
     client = TestClient(app)
-    resp = client.post('/generate', json={'prompt': 'A 15 second explainer about Minecraft'})
+    resp = client.post('/generate', json={'prompt': 'Create exactly one 5-second scene with one shot about Minecraft. Use one short narration sentence.'})
     print('Status:', resp.status_code)
     try:
         print('Response:', json.dumps(resp.json(), indent=2))

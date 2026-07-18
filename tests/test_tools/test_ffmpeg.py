@@ -22,6 +22,9 @@ class RecordingFFmpegService(LocalFFmpegService):
         Path(command[-1]).parent.mkdir(parents=True, exist_ok=True)
         Path(command[-1]).write_bytes(b"media")
 
+    def _probe_duration(self, path: Path) -> float:
+        return 1.0
+
 
 def _inputs(tmp_path: Path) -> list[SceneMedia]:
     clip = tmp_path / "shot.mp4"
@@ -46,7 +49,7 @@ def test_assemble_renders_scene_with_narration_and_writes_final(tmp_path):
     assert result == str(output)
     assert output.read_bytes() == b"media"
     scene_command = service.commands[0]
-    assert "-shortest" in scene_command
+    assert "-t" in scene_command
     assert any("tpad=stop_mode=clone" in value for value in scene_command)
 
 
@@ -88,6 +91,33 @@ def test_run_translates_launch_failure(monkeypatch):
 
     with pytest.raises(FFmpegError, match="Unable to launch FFmpeg"):
         service._run(["missing-ffmpeg", "-version"], "probe")
+
+
+def test_probe_duration_parses_ffmpeg_metadata(monkeypatch, tmp_path):
+    service = LocalFFmpegService(executable="ffmpeg-test")
+    completed = subprocess.CompletedProcess(
+        ["ffmpeg-test"],
+        1,
+        "",
+        "Duration: 00:01:02.50, start: 0.000000, bitrate: 128 kb/s",
+    )
+    monkeypatch.setattr(subprocess, "run", lambda *args, **kwargs: completed)
+
+    assert service._probe_duration(tmp_path / "voice.mp3") == 62.5
+
+
+def test_probe_duration_rejects_missing_metadata(monkeypatch, tmp_path):
+    service = LocalFFmpegService(executable="ffmpeg-test")
+    completed = subprocess.CompletedProcess(
+        ["ffmpeg-test"],
+        1,
+        "",
+        "Invalid data found when processing input",
+    )
+    monkeypatch.setattr(subprocess, "run", lambda *args, **kwargs: completed)
+
+    with pytest.raises(FFmpegError, match="Could not determine duration"):
+        service._probe_duration(tmp_path / "voice.mp3")
 
 
 def test_bundled_ffmpeg_creates_real_mp4(tmp_path):
@@ -144,6 +174,10 @@ def test_bundled_ffmpeg_creates_real_mp4(tmp_path):
 
     assert output.exists()
     assert output.stat().st_size > 1_000
+    reader = imageio_ffmpeg.read_frames(str(output))
+    metadata = next(reader)
+    reader.close()
+    assert metadata["duration"] >= 0.55
 
 
 def test_bundled_ffmpeg_concatenates_multiple_scenes(tmp_path):
