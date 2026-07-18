@@ -6,15 +6,16 @@ import subprocess
 import imageio_ffmpeg
 import pytest
 
-from models.editor import SceneMedia
+from models.editor import ClipMedia, SceneMedia
 from tools.ffmpeg import FFmpegError, LocalFFmpegService
 
 
 class RecordingFFmpegService(LocalFFmpegService):
     """Record commands and create fake outputs without launching FFmpeg."""
 
-    def __init__(self):
+    def __init__(self, narration_duration: float = 1.0):
         super().__init__(executable="ffmpeg-test")
+        self.narration_duration = narration_duration
         self.commands: list[list[str]] = []
 
     def _run(self, command: list[str], operation: str) -> None:
@@ -23,10 +24,13 @@ class RecordingFFmpegService(LocalFFmpegService):
         Path(command[-1]).write_bytes(b"media")
 
     def _probe_duration(self, path: Path) -> float:
-        return 1.0
+        return self.narration_duration
 
 
-def _inputs(tmp_path: Path) -> list[SceneMedia]:
+def _inputs(
+    tmp_path: Path,
+    planned_duration: float = 2.0,
+) -> list[SceneMedia]:
     clip = tmp_path / "shot.mp4"
     audio = tmp_path / "scene.mp3"
     clip.write_bytes(b"clip")
@@ -34,8 +38,15 @@ def _inputs(tmp_path: Path) -> list[SceneMedia]:
     return [
         SceneMedia(
             scene_number=1,
-            clip_paths=[str(clip)],
+            clips=[
+                ClipMedia(
+                    shot_number=1,
+                    file_path=str(clip),
+                    planned_duration=planned_duration,
+                )
+            ],
             narration_path=str(audio),
+            planned_duration=planned_duration,
         )
     ]
 
@@ -53,12 +64,49 @@ def test_assemble_renders_scene_with_narration_and_writes_final(tmp_path):
     assert any("tpad=stop_mode=clone" in value for value in scene_command)
 
 
+def test_render_trims_clip_and_uses_planned_duration_when_audio_is_short(
+    tmp_path,
+):
+    service = RecordingFFmpegService(narration_duration=1.0)
+
+    service.assemble(
+        _inputs(tmp_path, planned_duration=2.0),
+        str(tmp_path / "final.mp4"),
+    )
+
+    command = service.commands[0]
+    filters = command[command.index("-filter_complex") + 1]
+    assert "trim=duration=2.000000" in filters
+    assert "tpad=stop_mode=clone" in filters
+    assert "apad=whole_dur=2.000000" in filters
+    assert command[command.index("-t") + 1] == "2.000000"
+
+
+def test_render_uses_narration_duration_when_audio_is_longer(tmp_path):
+    service = RecordingFFmpegService(narration_duration=3.0)
+
+    service.assemble(
+        _inputs(tmp_path, planned_duration=2.0),
+        str(tmp_path / "final.mp4"),
+    )
+
+    command = service.commands[0]
+    assert command[command.index("-t") + 1] == "3.000000"
+
+
 def test_assemble_rejects_missing_input_file(tmp_path):
     service = RecordingFFmpegService()
     scene = SceneMedia(
         scene_number=1,
-        clip_paths=[str(tmp_path / "missing.mp4")],
+        clips=[
+            ClipMedia(
+                shot_number=1,
+                file_path=str(tmp_path / "missing.mp4"),
+                planned_duration=1,
+            )
+        ],
         narration_path=str(tmp_path / "missing.mp3"),
+        planned_duration=1,
     )
 
     with pytest.raises(FileNotFoundError, match="missing.mp4"):
@@ -131,7 +179,7 @@ def test_bundled_ffmpeg_creates_real_mp4(tmp_path):
             "-f",
             "lavfi",
             "-i",
-            "color=c=blue:s=1280x720:d=0.4",
+            "color=c=blue:s=1280x720:d=0.8",
             "-c:v",
             "libx264",
             "-pix_fmt",
@@ -149,7 +197,7 @@ def test_bundled_ffmpeg_creates_real_mp4(tmp_path):
             "-f",
             "lavfi",
             "-i",
-            "sine=frequency=440:duration=0.6",
+            "sine=frequency=440:duration=0.2",
             "-q:a",
             "4",
             str(audio),
@@ -165,8 +213,15 @@ def test_bundled_ffmpeg_creates_real_mp4(tmp_path):
         [
             SceneMedia(
                 scene_number=1,
-                clip_paths=[str(clip)],
+                clips=[
+                    ClipMedia(
+                        shot_number=1,
+                        file_path=str(clip),
+                        planned_duration=0.5,
+                    )
+                ],
                 narration_path=str(audio),
+                planned_duration=0.5,
             )
         ],
         str(output),
@@ -177,7 +232,14 @@ def test_bundled_ffmpeg_creates_real_mp4(tmp_path):
     reader = imageio_ffmpeg.read_frames(str(output))
     metadata = next(reader)
     reader.close()
-    assert metadata["duration"] >= 0.55
+    assert 0.45 <= metadata["duration"] <= 0.65
+    probe = subprocess.run(
+        [executable, "-hide_banner", "-i", str(output)],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    assert "Audio:" in probe.stderr
 
 
 def test_bundled_ffmpeg_concatenates_multiple_scenes(tmp_path):
@@ -221,8 +283,15 @@ def test_bundled_ffmpeg_concatenates_multiple_scenes(tmp_path):
     scenes = [
         SceneMedia(
             scene_number=number,
-            clip_paths=[str(clip)],
+            clips=[
+                ClipMedia(
+                    shot_number=number,
+                    file_path=str(clip),
+                    planned_duration=0.2,
+                )
+            ],
             narration_path=str(audio),
+            planned_duration=0.2,
         )
         for number in (1, 2)
     ]

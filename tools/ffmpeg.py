@@ -56,7 +56,10 @@ class LocalFFmpegService(FFmpegService):
     @staticmethod
     def _validate_inputs(scenes: list[SceneMedia]) -> None:
         for scene in scenes:
-            for raw_path in [*scene.clip_paths, scene.narration_path]:
+            for raw_path in [
+                *(clip.file_path for clip in scene.clips),
+                scene.narration_path,
+            ]:
                 path = Path(raw_path)
                 if not path.is_file():
                     raise FileNotFoundError(
@@ -65,21 +68,23 @@ class LocalFFmpegService(FFmpegService):
 
     def _render_scene(self, scene: SceneMedia, output: Path) -> None:
         narration_duration = self._probe_duration(Path(scene.narration_path))
+        target_duration = max(scene.planned_duration, narration_duration)
         command = [self.executable, "-y"]
-        for clip_path in scene.clip_paths:
-            command.extend(["-i", clip_path])
-        audio_index = len(scene.clip_paths)
+        for clip in scene.clips:
+            command.extend(["-i", clip.file_path])
+        audio_index = len(scene.clips)
         command.extend(["-i", scene.narration_path])
 
         normalized: list[str] = []
         filters: list[str] = []
-        video_filter = (
-            "scale=1280:720:force_original_aspect_ratio=decrease,"
-            "pad=1280:720:(ow-iw)/2:(oh-ih)/2,setsar=1,"
-            "fps=30,setpts=PTS-STARTPTS"
-        )
-        for index in range(len(scene.clip_paths)):
+        for index, clip in enumerate(scene.clips):
             label = f"v{index}"
+            video_filter = (
+                f"trim=duration={clip.planned_duration:.6f},"
+                "setpts=PTS-STARTPTS,"
+                "scale=1280:720:force_original_aspect_ratio=decrease,"
+                "pad=1280:720:(ow-iw)/2:(oh-ih)/2,setsar=1,fps=30"
+            )
             filters.append(f"[{index}:v:0]{video_filter}[{label}]")
             normalized.append(f"[{label}]")
 
@@ -99,7 +104,8 @@ class LocalFFmpegService(FFmpegService):
         filters.append(
             f"[{audio_index}:a:0]aresample=48000,"
             "aformat=sample_fmts=fltp:channel_layouts=stereo,"
-            "asetpts=PTS-STARTPTS[scene_a]"
+            "asetpts=PTS-STARTPTS,"
+            f"apad=whole_dur={target_duration:.6f}[scene_a]"
         )
 
         command.extend(
@@ -123,7 +129,7 @@ class LocalFFmpegService(FFmpegService):
                 "-ac",
                 "2",
                 "-t",
-                f"{narration_duration:.6f}",
+                f"{target_duration:.6f}",
                 "-movflags",
                 "+faststart",
                 str(output),
