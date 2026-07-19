@@ -40,6 +40,31 @@ class VoiceAgent:
             Path("outputs") / job_id / "voice" / "audio" / f"scene_{scene_number:03d}.mp3"
         )
 
+    @staticmethod
+    def _is_reusable(track: AudioTrack) -> bool:
+        path = Path(track.file_path)
+        return path.is_file() and path.stat().st_size > 0
+
+    def _load_manifest(self, job_id: str) -> dict[int, AudioTrack]:
+        if self.storage is None:
+            return {}
+        data = self.storage.load(job_id, self.name.value, "voice_output.json")
+        if data is None:
+            return {}
+        output = VoiceOutput.model_validate(data)
+        return {track.scene_number: track for track in output.tracks}
+
+    def _save_manifest(self, job_id: str, tracks: list[AudioTrack]) -> None:
+        if self.storage is None:
+            return
+        output = VoiceOutput(tracks=tracks)
+        self.storage.save(
+            job_id,
+            self.name.value,
+            "voice_output.json",
+            output.model_dump(mode="json"),
+        )
+
     def run(self, context: WorkflowState) -> WorkflowState:
         """Generate a narration track for every scene in the script.
 
@@ -60,31 +85,52 @@ class VoiceAgent:
             context.agent_results[AgentName.SCRIPT].output_data
         )
 
+        completed = self._load_manifest(context.job_id)
         tracks: list[AudioTrack] = []
         artifacts: list[ArtifactRef] = []
 
         for scene in script.scenes:
-            output_path = self._track_path(context.job_id, scene.scene_number)
-            try:
-                generated_path = self.tts_service.synthesize(scene.narration, output_path)
-            except Exception as exc:
-                if not self.fallback_enabled:
-                    raise RuntimeError(
-                        f"Voice synthesis failed: {exc}. "
-                        f"Set FALLBACK_STUBS=true to generate placeholder media, "
-                        f"or configure VOICE_API_KEY in .env."
+            existing = completed.get(scene.scene_number)
+            if existing is not None and self._is_reusable(existing):
+                track = existing
+            else:
+                output_path = self._track_path(context.job_id, scene.scene_number)
+                try:
+                    generated_path = self.tts_service.synthesize(
+                        scene.narration,
+                        output_path,
+                    )
+                except Exception as exc:
+                    if not self.fallback_enabled:
+                        raise RuntimeError(
+                            f"Voice synthesis failed: {exc}. "
+                            "Set FALLBACK_STUBS=true to generate placeholder media, "
+                            "or configure VOICE_API_KEY in .env."
+                        ) from exc
+                    raise NotImplementedError(
+                        "Fallback stub mode not implemented for VoiceAgent"
                     ) from exc
-                raise NotImplementedError(
-                    "Fallback stub mode not implemented for VoiceAgent"
-                ) from exc
 
-            tracks.append(
-                AudioTrack(
+                track = AudioTrack(
                     scene_number=scene.scene_number,
                     file_path=generated_path,
                     duration=scene.duration_hint,
                 )
-            )
+                if not self._is_reusable(track):
+                    raise RuntimeError(
+                        "Voice synthesis returned a missing or empty file: "
+                        f"{generated_path}"
+                    )
+                completed[scene.scene_number] = track
+                ordered_partial = [
+                    completed[item.scene_number]
+                    for item in script.scenes
+                    if item.scene_number in completed
+                    and self._is_reusable(completed[item.scene_number])
+                ]
+                self._save_manifest(context.job_id, ordered_partial)
+
+            tracks.append(track)
             artifacts.append(
                 ArtifactRef(
                     agent_name=self.name,
@@ -95,13 +141,7 @@ class VoiceAgent:
 
         voice_output = VoiceOutput(tracks=tracks)
 
-        if self.storage is not None:
-            self.storage.save(
-                context.job_id,
-                self.name.value,
-                "voice_output.json",
-                voice_output.model_dump(mode="json"),
-            )
+        self._save_manifest(context.job_id, tracks)
 
         context.agent_results[self.name] = AgentResult(
             agent_name=self.name,
