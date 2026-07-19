@@ -81,6 +81,19 @@ class TestVideoAgent:
         assert Path(video_output.clips[0].file_path).parts[-3:] == ("video", "clips", "shot_001.mp4")
         mock_service.generate.assert_called_once()
 
+    def test_run_uses_configured_output_directory(self, tmp_path):
+        output_dir = tmp_path / "custom-media"
+        service = _mock_video_service()
+
+        VideoAgent(service, output_dir=output_dir).run(
+            _make_context_with_storyboard()
+        )
+
+        generated_path = Path(service.generate.call_args.args[1])
+        assert generated_path == (
+            output_dir / "test-job" / "video" / "clips" / "shot_001.mp4"
+        )
+
     def test_run_persists_artifacts_to_storage(self, tmp_path, monkeypatch):
         monkeypatch.chdir(tmp_path)
         mock_service = _mock_video_service()
@@ -104,6 +117,29 @@ class TestVideoAgent:
 
         with pytest.raises(RuntimeError, match="VIDEO_API_KEY not configured"):
             agent.run(ctx)
+
+    def test_run_generates_placeholder_when_fallback_enabled(
+        self,
+        tmp_path,
+    ):
+        service = _mock_video_service()
+        service.generate.side_effect = RuntimeError("quota exhausted")
+        context = _make_context_with_storyboard()
+        context.agent_results[AgentName.STORYBOARD].output_data["shots"][0][
+            "duration"
+        ] = 0.2
+
+        result = VideoAgent(
+            service,
+            fallback_enabled=True,
+            output_dir=tmp_path,
+        ).run(context)
+
+        clip = VideoOutput.model_validate(
+            result.agent_results[AgentName.VIDEO].output_data
+        ).clips[0]
+        assert Path(clip.file_path).is_file()
+        assert Path(clip.file_path).stat().st_size > 0
 
     def test_run_persists_each_clip_and_resume_generates_only_missing(
         self,

@@ -83,6 +83,19 @@ class TestVoiceAgent:
         )
         mock_service.synthesize.assert_called_once()
 
+    def test_run_uses_configured_output_directory(self, tmp_path):
+        output_dir = tmp_path / "custom-media"
+        service = _mock_tts_service()
+
+        VoiceAgent(service, output_dir=output_dir).run(
+            _make_context_with_script()
+        )
+
+        generated_path = Path(service.synthesize.call_args.args[1])
+        assert generated_path == (
+            output_dir / "test-job" / "voice" / "audio" / "scene_001.mp3"
+        )
+
     def test_run_persists_artifacts_to_storage(self, tmp_path, monkeypatch):
         monkeypatch.chdir(tmp_path)
         mock_service = _mock_tts_service()
@@ -106,6 +119,29 @@ class TestVoiceAgent:
 
         with pytest.raises(RuntimeError, match="VOICE_API_KEY not configured"):
             agent.run(ctx)
+
+    def test_run_generates_placeholder_when_fallback_enabled(
+        self,
+        tmp_path,
+    ):
+        service = _mock_tts_service()
+        service.synthesize.side_effect = RuntimeError("quota exhausted")
+        context = _make_context_with_script()
+        context.agent_results[AgentName.SCRIPT].output_data["scenes"][0][
+            "duration_hint"
+        ] = 0.2
+
+        result = VoiceAgent(
+            service,
+            fallback_enabled=True,
+            output_dir=tmp_path,
+        ).run(context)
+
+        track = VoiceOutput.model_validate(
+            result.agent_results[AgentName.VOICE].output_data
+        ).tracks[0]
+        assert Path(track.file_path).is_file()
+        assert Path(track.file_path).stat().st_size > 0
 
     def test_run_persists_each_track_and_resume_generates_only_missing(
         self,

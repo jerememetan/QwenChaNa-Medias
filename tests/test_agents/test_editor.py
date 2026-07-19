@@ -143,6 +143,18 @@ def test_editor_rejects_missing_upstream_result(tmp_path, missing):
         EditorAgent(_service(), output_dir=tmp_path).run(state)
 
 
+@pytest.mark.parametrize(
+    "failed",
+    [AgentName.STORYBOARD, AgentName.VIDEO, AgentName.VOICE],
+)
+def test_editor_rejects_failed_upstream_result(tmp_path, failed):
+    state = _context(tmp_path)
+    state.agent_results[failed].success = False
+
+    with pytest.raises(ValueError, match=rf"{failed.value} failed"):
+        EditorAgent(_service(), output_dir=tmp_path).run(state)
+
+
 def test_editor_rejects_missing_shot_clip(tmp_path):
     state = _context(tmp_path)
     state.agent_results[AgentName.VIDEO].output_data["clips"].pop()

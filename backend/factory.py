@@ -30,7 +30,17 @@ def build_production_agents(
         ResearchAgent(llm, storage),
         ScriptAgent(llm, storage),
         StoryboardAgent(llm, storage),
-        VideoAgent(video, storage, fallback_enabled),
-        VoiceAgent(voice, storage, fallback_enabled),
+        VideoAgent(
+            video,
+            storage=storage,
+            fallback_enabled=fallback_enabled,
+            output_dir=output_dir,
+        ),
+        VoiceAgent(
+            voice,
+            storage=storage,
+            fallback_enabled=fallback_enabled,
+            output_dir=output_dir,
+        ),
         EditorAgent(LocalFFmpegService(), storage, output_dir),
     ]

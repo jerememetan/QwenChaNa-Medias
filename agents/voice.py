@@ -8,6 +8,7 @@ from models.script import Script
 from models.voice import AudioTrack, VoiceOutput
 from models.workflow_state import WorkflowState
 from storage.base import StorageBackend
+from tools.fallback_media import create_placeholder_audio
 from tools.tts import TTSService
 
 
@@ -16,7 +17,7 @@ class VoiceAgent:
 
     Iterates over ``Script.scenes``, calls ``TTSService.synthesize``
     for each scene's narration, persists audio to
-    ``outputs/{job_id}/voice/audio/``, and writes a ``VoiceOutput``
+    the configured output directory, and writes a ``VoiceOutput``
     into the agent result.
 
     Raises ``RuntimeError`` when the API is unavailable and
@@ -30,14 +31,20 @@ class VoiceAgent:
         tts_service: TTSService,
         storage: StorageBackend | None = None,
         fallback_enabled: bool = False,
+        output_dir: str | Path = "./outputs",
     ) -> None:
         self.tts_service = tts_service
         self.storage = storage
         self.fallback_enabled = fallback_enabled
+        self.output_dir = Path(output_dir)
 
     def _track_path(self, job_id: str, scene_number: int) -> str:
         return str(
-            Path("outputs") / job_id / "voice" / "audio" / f"scene_{scene_number:03d}.mp3"
+            self.output_dir
+            / job_id
+            / "voice"
+            / "audio"
+            / f"scene_{scene_number:03d}.mp3"
         )
 
     @staticmethod
@@ -107,9 +114,10 @@ class VoiceAgent:
                             "Set FALLBACK_STUBS=true to generate placeholder media, "
                             "or configure VOICE_API_KEY in .env."
                         ) from exc
-                    raise NotImplementedError(
-                        "Fallback stub mode not implemented for VoiceAgent"
-                    ) from exc
+                    generated_path = create_placeholder_audio(
+                        output_path,
+                        scene.duration_hint,
+                    )
 
                 track = AudioTrack(
                     scene_number=scene.scene_number,

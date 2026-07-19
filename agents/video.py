@@ -8,6 +8,7 @@ from models.storyboard import Storyboard
 from models.video import VideoClip, VideoOutput
 from models.workflow_state import WorkflowState
 from storage.base import StorageBackend
+from tools.fallback_media import create_placeholder_video
 from tools.video_gen import VideoGenService
 
 
@@ -15,7 +16,7 @@ class VideoAgent:
     """Generates video clips for each storyboard shot.
 
     Iterates over ``Storyboard.shots``, calls ``VideoGenService.generate``
-    for each, persists clips to ``outputs/{job_id}/video/clips/``, and
+    for each, persists clips beneath the configured output directory, and
     writes a ``VideoOutput`` into the agent result.
 
     Raises ``RuntimeError`` when the API is unavailable and
@@ -29,14 +30,20 @@ class VideoAgent:
         video_service: VideoGenService,
         storage: StorageBackend | None = None,
         fallback_enabled: bool = False,
+        output_dir: str | Path = "./outputs",
     ) -> None:
         self.video_service = video_service
         self.storage = storage
         self.fallback_enabled = fallback_enabled
+        self.output_dir = Path(output_dir)
 
     def _clip_path(self, job_id: str, shot_number: int) -> str:
         return str(
-            Path("outputs") / job_id / "video" / "clips" / f"shot_{shot_number:03d}.mp4"
+            self.output_dir
+            / job_id
+            / "video"
+            / "clips"
+            / f"shot_{shot_number:03d}.mp4"
         )
 
     @staticmethod
@@ -106,9 +113,10 @@ class VideoAgent:
                             "Set FALLBACK_STUBS=true to generate placeholder media, "
                             "or configure VIDEO_API_KEY in .env."
                         ) from exc
-                    raise NotImplementedError(
-                        "Fallback stub mode not implemented for VideoAgent"
-                    ) from exc
+                    generated_path = create_placeholder_video(
+                        output_path,
+                        shot.duration,
+                    )
 
                 clip = VideoClip(
                     shot_number=shot.shot_number,

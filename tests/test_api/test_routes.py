@@ -352,6 +352,23 @@ class TestResumeEndpoint:
         factory.assert_called_once_with()
         assert call_order == [AgentName.EDITOR]
 
+    def test_resume_marks_job_running_before_pipeline_execution(self):
+        storage = InMemoryStorage()
+        job_store: dict[str, JobRecord] = {}
+        observed_statuses: list[JobStatus] = []
+        app = create_app(
+            storage=storage,
+            job_store=job_store,
+            agents=[StatusObservingEditor(job_store, observed_statuses)],
+        )
+        client = TestClient(app)
+        job_id = _failed_editor_job(storage, job_store)
+
+        response = client.post(f"/resume/{job_id}")
+
+        assert response.status_code == 202
+        assert observed_statuses == [JobStatus.RUNNING]
+
     def test_resume_returns_503_without_configured_agents(self):
         storage = InMemoryStorage()
         job_store: dict[str, JobRecord] = {}
@@ -367,6 +384,27 @@ class TestResumeEndpoint:
         client, _, _ = _make_test_app()
         response = client.post("/resume/nonexistent-id")
         assert response.status_code == 404
+
+    def test_resume_returns_404_when_job_context_is_missing(self):
+        storage = InMemoryStorage()
+        job_store = {
+            "missing-context": JobRecord(
+                job_id="missing-context",
+                prompt="test",
+                status=JobStatus.FAILED,
+            )
+        }
+        app = create_app(
+            storage=storage,
+            job_store=job_store,
+            agents=[CompletingEditor([])],
+        )
+        client = TestClient(app, raise_server_exceptions=False)
+
+        response = client.post("/resume/missing-context")
+
+        assert response.status_code == 404
+        assert response.json()["detail"] == "Job context not found"
 
     def test_resume_returns_409_for_running_job(self):
         client, _, job_store = _make_test_app()
@@ -415,6 +453,21 @@ class FailingIfCalledEditor(BaseAgent):
 
     def run(self, context: WorkflowState) -> WorkflowState:
         raise AssertionError("stale agents used")
+
+
+class StatusObservingEditor(CompletingEditor):
+    def __init__(
+        self,
+        job_store: dict[str, JobRecord],
+        observed_statuses: list[JobStatus],
+    ) -> None:
+        super().__init__([])
+        self.job_store = job_store
+        self.observed_statuses = observed_statuses
+
+    def run(self, context: WorkflowState) -> WorkflowState:
+        self.observed_statuses.append(self.job_store[context.job_id].status)
+        return super().run(context)
 
 
 def _failed_editor_job(storage, job_store) -> str:

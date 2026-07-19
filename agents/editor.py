@@ -36,6 +36,10 @@ class EditorAgent:
                 raise ValueError(
                     f"Editor agent requires {required.value} output in context"
                 )
+            if not context.agent_results[required].success:
+                raise ValueError(
+                    f"Editor agent cannot run because upstream {required.value} failed"
+                )
 
         storyboard = Storyboard.model_validate(
             context.agent_results[AgentName.STORYBOARD].output_data

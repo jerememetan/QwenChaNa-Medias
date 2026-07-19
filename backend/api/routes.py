@@ -2,7 +2,9 @@
 
 import uuid
 from collections.abc import Callable
+from datetime import datetime, timezone
 from pathlib import Path
+from threading import Lock
 
 from fastapi import FastAPI, HTTPException
 from fastapi.responses import FileResponse
@@ -35,6 +37,7 @@ def create_app(
 ) -> FastAPI:
     app = FastAPI()
     pipeline = Pipeline(storage) if agents else None
+    resume_transition_lock = Lock()
 
     def completed_editor_output(job_id: str) -> EditorOutput:
         record = job_store.get(job_id)
@@ -151,20 +154,34 @@ def create_app(
 
     @app.post("/resume/{job_id}", status_code=202, response_model=ResumeResponse)
     def resume(job_id: str) -> ResumeResponse:
-        record = job_store.get(job_id)
-        if record is None:
-            raise HTTPException(status_code=404, detail="Job not found")
-        if record.status == JobStatus.RUNNING:
-            raise HTTPException(status_code=409, detail="Job is already running")
-        if record.status == JobStatus.COMPLETED:
-            raise HTTPException(status_code=409, detail="Job is already completed")
-        resume_agents = agent_factory() if agent_factory is not None else agents
-        if not resume_agents:
-            raise HTTPException(
-                status_code=503,
-                detail="Resume is unavailable: no agents configured",
-            )
-        context = resume_job(job_id, resume_agents, storage)
+        with resume_transition_lock:
+            record = job_store.get(job_id)
+            if record is None:
+                raise HTTPException(status_code=404, detail="Job not found")
+            if record.status == JobStatus.RUNNING:
+                raise HTTPException(status_code=409, detail="Job is already running")
+            if record.status == JobStatus.COMPLETED:
+                raise HTTPException(status_code=409, detail="Job is already completed")
+            if storage.load(job_id, "pipeline", "context.json") is None:
+                raise HTTPException(status_code=404, detail="Job context not found")
+            resume_agents = agent_factory() if agent_factory is not None else agents
+            if not resume_agents:
+                raise HTTPException(
+                    status_code=503,
+                    detail="Resume is unavailable: no agents configured",
+                )
+            record.status = JobStatus.RUNNING
+            record.updated_at = datetime.now(timezone.utc)
+            record.failed_agent = None
+            record.error = None
+
+        try:
+            context = resume_job(job_id, resume_agents, storage)
+        except FileNotFoundError as exc:
+            record.status = JobStatus.FAILED
+            record.updated_at = datetime.now(timezone.utc)
+            record.error = str(exc)
+            raise HTTPException(status_code=404, detail="Job context not found") from exc
         record.status = context.status
         record.updated_at = context.updated_at
         record.failed_agent = context.failed_agent
