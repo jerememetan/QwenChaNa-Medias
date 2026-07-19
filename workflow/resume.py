@@ -22,11 +22,4 @@ def resume_job(
     context.failed_agent = None
     context.error = None
 
-    # Filter out agents whose results are already in agent_results
-    remaining_agents = [
-        agent for agent in agents if agent.name not in context.agent_results
-    ]
-
-    # Use Pipeline to run remaining agents
-    pipeline = Pipeline(storage)
-    return pipeline.run(job_id, remaining_agents, context)
+    return Pipeline(storage).run(job_id, agents, context)

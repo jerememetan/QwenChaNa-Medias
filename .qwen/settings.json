@@ -8,7 +8,12 @@
       "Read(C:\\Users\\Jereme\\Downloads\\skills\\skills\\systematic-debugging/**)",
       "Bash(xcopy *)",
       "Read(C:\\Users\\Jereme\\.qwen\\skills/**)",
-      "Bash(rmdir *)"
+      "Bash(rmdir *)",
+      "Bash(dir *)",
+      "Bash(venv\\scripts\\python.exe *)",
+      "Bash(git add *)",
+      "Bash(type *)",
+      "Bash(findstr *)"
     ]
   },
   "$version": 4

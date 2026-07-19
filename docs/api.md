@@ -1,4 +1,49 @@
 # API Reference
 
-> TODO: Document all HTTP endpoints, request/response schemas, and error codes.
-> Reference: PROJECT_SPEC.md §3.1
+## `POST /generate`
+
+Accepts `{"prompt": "..."}` and returns `202` with a `job_id`. The current MVP
+runs its seven agents synchronously before returning. Prompt length must be
+1–5000 non-whitespace characters.
+
+## `GET /status/{job_id}`
+
+Returns job status (`pending`, `running`, `completed`, or `failed`), current or
+failed agent, and persisted error text. Unknown jobs return `404`.
+
+## `GET /details/{job_id}`
+
+Returns the persisted workflow context for the demo workspace, including the
+prompt, status, current or failed agent, error text, and typed `agent_results`
+for every saved stage. Unknown jobs and jobs whose context is missing return
+`404`.
+
+## `GET /result/{job_id}`
+
+For a completed job, returns artifact metadata, exact `output_path`, and:
+
+```json
+{"download_url": "/result/{job_id}/download"}
+```
+
+Incomplete jobs return `409`. A completed context without an Editor result
+returns `404`.
+
+## `GET /result/{job_id}/download`
+
+Returns `final_video.mp4` as `video/mp4`. Missing files return `404`.
+
+## `POST /resume/{job_id}`
+
+Loads persisted context, skips successful agents, executes remaining agents,
+and updates job status. Running or completed jobs return `409`; an app created
+without configured agents returns `503`.
+
+The resume request rereads `.env`, rebuilds provider clients, skips completed
+agents and valid per-asset manifest entries, then runs only missing work. This
+allows model or API-key changes without restarting the API. Paid providers are
+never retried automatically.
+
+## `GET /health`
+
+Returns `{"status": "ok"}`.

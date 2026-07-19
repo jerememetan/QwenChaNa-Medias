@@ -2,7 +2,19 @@
 
 from abc import ABC, abstractmethod
 
+import openai
+from tenacity import retry, retry_if_exception_type, stop_after_attempt, wait_exponential
+
+from backend.config import LLMConfig
 from models.enums import AgentName
+
+
+_RETRYABLE_LLM_EXCEPTIONS = (
+    openai.APIConnectionError,
+    openai.RateLimitError,
+    openai.APITimeoutError,
+    openai.InternalServerError,
+)
 
 
 class LLMService(ABC):
@@ -26,3 +38,46 @@ class LLMService(ABC):
             The generated text response.
         """
         ...
+
+
+class AlibabaCloudLLMService(LLMService):
+    """Concrete LLM service for Alibaba Cloud Model Studio.
+
+    Uses the ``openai`` Python SDK because Model Studio exposes an
+    OpenAI-compatible API mode. The endpoint URL (dashscope.aliyuncs.com)
+    is the underlying API address — the product is Alibaba Cloud Model Studio.
+    """
+
+    def __init__(self, config: LLMConfig) -> None:
+        self.config = config
+        self._client: openai.OpenAI | None = None
+        if config.api_key:
+            self._client = openai.OpenAI(
+                api_key=config.api_key,
+                base_url=config.base_url,
+                timeout=config.timeout,
+            )
+
+    @retry(
+        reraise=True,
+        stop=stop_after_attempt(3),
+        wait=wait_exponential(multiplier=1, min=1, max=10),
+        retry=retry_if_exception_type(_RETRYABLE_LLM_EXCEPTIONS),
+    )
+    def generate(self, prompt: str, agent_name: AgentName) -> str:
+        if self._client is None:
+            raise RuntimeError(
+                "AlibabaCloudLLMService has no API key configured — "
+                "set LLM_API_KEY in .env or pass api_key to LLMConfig"
+            )
+        response = self._client.chat.completions.create(
+            model=self.config.model,
+            messages=[
+                {
+                    "role": "system",
+                    "content": f"You are the {agent_name.value} agent in a video production pipeline. Respond with structured JSON matching the expected output schema.",
+                },
+                {"role": "user", "content": prompt},
+            ],
+        )
+        return response.choices[0].message.content

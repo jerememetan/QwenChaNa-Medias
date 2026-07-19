@@ -1,0 +1,82 @@
+"""TTS service abstraction — agents call this interface, never raw APIs."""
+
+from abc import ABC, abstractmethod
+from pathlib import Path
+
+import dashscope
+import requests
+from tenacity import retry, retry_if_exception, stop_after_attempt, wait_exponential
+
+from backend.config import VoiceConfig
+
+
+def _is_transient_error(exc: BaseException) -> bool:
+    if isinstance(
+        exc,
+        (requests.exceptions.ConnectionError, requests.exceptions.Timeout),
+    ):
+        return True
+    if isinstance(exc, requests.exceptions.HTTPError) and exc.response is not None:
+        return exc.response.status_code in {429, 502, 503, 504}
+    return False
+
+
+class TTSService(ABC):
+    """Abstract interface for text-to-speech generation."""
+
+    @abstractmethod
+    def synthesize(self, text: str, output_path: str) -> str:
+        """Synthesize speech from text and save to file.
+
+        Args:
+            text: The text to convert to speech.
+            output_path: Path to save the audio file.
+
+        Returns:
+            The path to the generated audio file.
+        """
+        ...
+
+
+class DashScopeTTSService(TTSService):
+    """Generate CosyVoice speech through Alibaba Model Studio WebSockets.
+
+    Uses the ``dashscope`` Python SDK's SpeechSynthesizer for
+    text-to-speech generation via the CosyVoice model.
+    """
+
+    def __init__(self, config: VoiceConfig) -> None:
+        self.config = config
+        self._configured = bool(config.api_key)
+
+    @retry(
+        reraise=True,
+        stop=stop_after_attempt(3),
+        wait=wait_exponential(multiplier=1, min=1, max=10),
+        retry=retry_if_exception(_is_transient_error),
+    )
+    def synthesize(self, text: str, output_path: str) -> str:
+        if not self._configured:
+            raise RuntimeError(
+                "DashScopeTTSService has no API key configured — "
+                "set VOICE_API_KEY in .env or pass api_key to VoiceConfig"
+            )
+
+        dashscope.api_key = self.config.api_key
+        if self.config.base_url:
+            dashscope.base_websocket_api_url = self.config.base_url.rstrip("/")
+
+        from dashscope.audio.tts_v2 import SpeechSynthesizer
+
+        synthesizer = SpeechSynthesizer(
+            model=self.config.model,
+            voice=self.config.voice,
+        )
+        audio_data = synthesizer.call(text)
+        if not isinstance(audio_data, bytes) or not audio_data:
+            raise RuntimeError("Voice synthesis returned empty audio data")
+
+        path = Path(output_path)
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_bytes(audio_data)
+        return str(path)

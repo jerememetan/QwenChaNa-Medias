@@ -3,20 +3,22 @@ fastapi>=0.110
 uvicorn[standard]>=0.29
 pydantic>=2.0
 pydantic-settings>=2.0
+# Stateful workflow orchestration; minor line pinned for graph API stability.
+langgraph>=1.2,<1.3
 
 # ---- LLM ----
-# No SDK dependency yet — LLMService ABC is provider-agnostic.
-# Alibaba Cloud Model Studio SDK will be added when implementing
-# AlibabaCloudLLMService in Phase 2.
+# openai SDK used because Alibaba Cloud Model Studio offers an OpenAI-compatible API mode.
+openai>=1.0
 
-# ---- TTS ----
-# elevenlabs>=1.0
+# ---- Retry / rate-limit handling ----
+tenacity>=8.0
 
-# ---- Video Generation ----
-# runway-sdk  (or equivalent)
+# ---- TTS + Video Generation (Alibaba Cloud Model Studio) ----
+dashscope>=1.20
 
 # ---- Media Processing ----
-ffmpeg-python>=0.2
+# Platform wheels bundle FFmpeg, avoiding a separate system install on Windows.
+imageio-ffmpeg>=0.6
 
 # ---- Testing ----
 pytest>=8.0

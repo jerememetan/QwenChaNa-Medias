@@ -6,12 +6,15 @@ from models.research import ResearchNote, ResearchNotes
 from models.scene import Scene
 from models.script import Script
 from models.storyboard import Shot, Storyboard
+from models.video import VideoClip, VideoOutput
+from models.voice import AudioTrack, VoiceOutput
 from models.workflow_state import WorkflowState
 
 __all__ = [
     "AgentName",
     "AgentResult",
     "ArtifactRef",
+    "AudioTrack",
     "CreativeBrief",
     "JobRecord",
     "JobStatus",
@@ -21,5 +24,8 @@ __all__ = [
     "Script",
     "Shot",
     "Storyboard",
+    "VideoClip",
+    "VideoOutput",
+    "VoiceOutput",
     "WorkflowState",
 ]

@@ -8,10 +8,12 @@ from pydantic import ValidationError
 from backend.api.schemas import (
     GenerateRequest,
     GenerateResponse,
+    JobDetailsResponse,
     StatusResponse,
     ResultResponse,
     ResumeResponse,
 )
+from models.agent_result import AgentResult
 from models.enums import AgentName, JobStatus
 
 
@@ -74,13 +76,15 @@ class TestResultResponse:
         resp = ResultResponse(
             job_id="abc-123",
             status=JobStatus.COMPLETED,
-            output_path="./outputs/abc-123",
+            output_path="./outputs/abc-123/editor/final/final_video.mp4",
+            download_url="/result/abc-123/download",
             artifacts=[],
         )
         data = resp.model_dump()
         assert data["job_id"] == "abc-123"
         assert data["status"] == JobStatus.COMPLETED
-        assert data["output_path"] == "./outputs/abc-123"
+        assert data["output_path"] == "./outputs/abc-123/editor/final/final_video.mp4"
+        assert data["download_url"] == "/result/abc-123/download"
         assert data["artifacts"] == []
 
 
@@ -89,6 +93,29 @@ class TestResumeResponse:
         resp = ResumeResponse(job_id="abc-123")
         data = resp.model_dump()
         assert data == {"job_id": "abc-123"}
+
+
+class TestJobDetailsResponse:
+    def test_details_preserves_typed_agent_results(self):
+        result = AgentResult(
+            agent_name=AgentName.DIRECTOR,
+            success=True,
+            output_data={"title": "Voxel"},
+        )
+        response = JobDetailsResponse(
+            job_id="job-1",
+            prompt="Make a voxel video",
+            status=JobStatus.COMPLETED,
+            agent_results={AgentName.DIRECTOR: result},
+        )
+
+        data = response.model_dump(mode="json")
+
+        assert data["agent_results"]["director"]["output_data"] == {
+            "title": "Voxel"
+        }
+        assert data["failed_agent"] is None
+        assert data["error"] is None
 
 
 class TestErrorResponse:

@@ -22,10 +22,10 @@ These rules apply to every session that writes, reviews, or plans code in this r
 
 ```
 backend/          FastAPI HTTP layer (routes, config, utils)
-frontend/         Web UI (future — placeholder for now)
+frontend/         React/Vite demo workspace and browser API client
 agents/           Pipeline agents (director, research, script, storyboard, video, voice, editor)
 tools/            External service wrappers (llm, tts, video_gen, ffmpeg, web_search)
-workflow/         Pipeline orchestration, job context, resume logic, LangGraph graph (future)
+workflow/         LangGraph orchestration, job context, parallel assets, resume logic
 models/           All Pydantic data contracts and schemas
 storage/          Artifact persistence abstraction (local, cloud)
 tests/            Mirrors source structure. Unit, integration, and e2e tests.

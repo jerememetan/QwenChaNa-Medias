@@ -46,3 +46,10 @@ coverage.xml
 # ---- Logs ----
 *.log
 logs/
+
+# ---- figma references ----
+Figma_Reference_UI
+
+# ---- Frontend ----
+frontend/node_modules/
+frontend/dist/

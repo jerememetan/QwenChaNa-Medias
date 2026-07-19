@@ -4,7 +4,7 @@ from datetime import datetime
 
 from pydantic import BaseModel, Field, field_validator
 
-from models.agent_result import ArtifactRef
+from models.agent_result import AgentResult, ArtifactRef
 from models.enums import AgentName, JobStatus
 
 
@@ -39,8 +39,19 @@ class ResultResponse(BaseModel):
     job_id: str
     status: JobStatus
     output_path: str
+    download_url: str
     artifacts: list[ArtifactRef]
 
 
 class ResumeResponse(BaseModel):
     job_id: str
+
+
+class JobDetailsResponse(BaseModel):
+    job_id: str
+    prompt: str
+    status: JobStatus
+    current_agent: AgentName | None = None
+    failed_agent: AgentName | None = None
+    error: str | None = None
+    agent_results: dict[AgentName, AgentResult]
