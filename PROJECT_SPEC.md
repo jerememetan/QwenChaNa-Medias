@@ -14,7 +14,7 @@ The pipeline flows from creative planning (research, script, storyboard) through
 | --- | --------------------------------------------------------------------------------- |
 | G1  | Accept a text prompt and produce a watchable short-form MP4 video                 |
 | G2  | Modular agent-based design — each agent is independently testable and replaceable |
-| G3  | Sequential execution first; migrate to LangGraph orchestration later              |
+| G3  | LangGraph orchestration with conditional routing and parallel asset generation    |
 | G4  | Intermediate outputs are persisted so the pipeline can resume after failures      |
 | G5  | Clean separation between agent logic, orchestration, and I/O                      |
 
@@ -23,7 +23,7 @@ The pipeline flows from creative planning (research, script, storyboard) through
 - Real-time / live video generation
 - User authentication or multi-tenant isolation
 - GPU-level model training or fine-tuning
-- Mobile app or browser-based UI (API-only for now)
+- Mobile app or native desktop application
 
 ---
 
@@ -34,19 +34,19 @@ The pipeline flows from creative planning (research, script, storyboard) through
 ```
 ┌─────────────────────────────────────────────────────────┐
 │                     FastAPI Service                      │
-│  POST /generate   GET /status   GET /result/{job_id}    │
+│  Generate · Details · Result · Download · Resume · UI   │
 └──────────────┬──────────────────────────────────────────┘
                │
                ▼
 ┌─────────────────────────────────────────────────────────┐
-│              Pipeline Orchestrator (sequential)          │
+│                    LangGraph Orchestrator                 │
 │                                                         │
 │  Director ──▶ Research ──▶ Script ──▶ Storyboard        │
 │                                         │               │
 │                                         ▼               │
 │                            ┌────────────────────┐       │
 │                            │   Video Agent      │       │
-│                            │   Voice Agent      │  ◀── parallel (future)
+│                            │   Voice Agent      │  ◀── parallel
 │                            └────────┬───────────┘       │
 │                                     ▼                   │
 │                               Editor Agent              │
@@ -68,7 +68,7 @@ The pipeline flows from creative planning (research, script, storyboard) through
 | ------------------------------------- | --------------------------------------------------------------------------------------------------------- |
 | **One agent = one responsibility**    | Easy to test, swap models, and reason about failures                                                      |
 | **Artifact-per-step persistence**     | Enables resume-from-failure without re-running prior agents                                               |
-| **Sequential first, LangGraph later** | LangGraph adds complexity; validate the pipeline logic first                                              |
+| **Conditional LangGraph workflow**    | Routes around persisted work, runs Video and Voice in parallel, and supports quota-safe manual resume       |
 | **Job-based execution**               | Each `/generate` call creates a `job_id`; all artifacts are namespaced under it                           |
 | **Agent interface contract**          | Every agent implements a common `run(context) -> context` interface so the orchestrator is agent-agnostic |
 
@@ -296,10 +296,10 @@ qwenchana-medias/
 
 ### Phase 3 — Asset Generation (Week 3)
 
-- [ ] Implement **Research Agent** (LLM + optional web search).
-- [ ] Implement **Video Agent** (integrate video generation API).
-- [ ] Implement **Voice Agent** (integrate TTS API).
-- [ ] Handle rate limits, retries, and fallback stubs.
+- [x] Implement **Research Agent** (LLM + optional web search).
+- [x] Implement **Video Agent** (integrate video generation API).
+- [x] Implement **Voice Agent** (integrate TTS API).
+- [x] Handle rate limits, retries, and fallback stubs.
 
 ### Phase 4 — Assembly (Week 4)
 
@@ -317,32 +317,39 @@ qwenchana-medias/
 - [x] Persist individual Video/Voice assets for quota-safe resume.
 - [x] Reload provider configuration when resuming a job.
 
+### Phase 6 — Demo Frontend
+
+- [x] Build the editorial single-workspace React UI.
+- [x] Connect Generate, Details, Result, Download, and Resume.
+- [x] Display persisted outputs for all seven agents.
+- [x] Serve the built frontend through FastAPI.
+- [x] Verify the UI without paid provider calls.
+
 ---
 
 ## 8. MVP Scope
 
 The MVP delivers a **working end-to-end pipeline** that:
 
-1. Accepts a text prompt via API.
-2. Runs all 7 agents sequentially.
+1. Accepts a text prompt through the API or demo workspace.
+2. Runs planning agents in order and Video + Voice in parallel.
 3. Produces a stitched MP4 with narration.
 4. Persists intermediate artifacts for debugging and resume.
-5. Returns the final video via a download endpoint.
+5. Displays and downloads the final video through the browser workspace.
 
 ### MVP In Scope
 
-- Sequential execution only
+- LangGraph conditional routing with parallel Video + Voice execution
 - Single video style (e.g., explainer / narration-over-visuals)
 - One LLM provider, one TTS provider, one video generation provider
 - Local file-based artifact storage
 - Basic job status tracking (pending, running, completed, failed)
+- Editorial React/Vite demo workspace
 
 ### MVP Out of Scope
 
-- Parallel agent execution
-- LangGraph orchestration
 - User auth / multi-tenancy
-- Web UI / frontend
+- Background jobs or live per-agent progress streaming
 - Video style customization beyond the prompt
 - Cost tracking or usage metering
 
@@ -352,7 +359,7 @@ The MVP delivers a **working end-to-end pipeline** that:
 
 | Area                | Improvement                                                                                     |
 | ------------------- | ----------------------------------------------------------------------------------------------- |
-| **Orchestration**   | Migrate to LangGraph for parallelism, conditional routing, and human-in-the-loop approval gates |
+| **Orchestration**   | Add background execution and human-in-the-loop approval gates                                   |
 | **Quality**         | Add a Reviewer Agent that scores output quality and triggers re-generation                      |
 | **Personalization** | Support brand kits, custom voices, and style presets                                            |
 | **Formats**         | Support multiple aspect ratios (9:16, 16:9, 1:1) and platforms (TikTok, Reels, Shorts)          |

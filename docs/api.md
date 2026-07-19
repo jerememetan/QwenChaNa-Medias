@@ -11,6 +11,13 @@ runs its seven agents synchronously before returning. Prompt length must be
 Returns job status (`pending`, `running`, `completed`, or `failed`), current or
 failed agent, and persisted error text. Unknown jobs return `404`.
 
+## `GET /details/{job_id}`
+
+Returns the persisted workflow context for the demo workspace, including the
+prompt, status, current or failed agent, error text, and typed `agent_results`
+for every saved stage. Unknown jobs and jobs whose context is missing return
+`404`.
+
 ## `GET /result/{job_id}`
 
 For a completed job, returns artifact metadata, exact `output_path`, and:
