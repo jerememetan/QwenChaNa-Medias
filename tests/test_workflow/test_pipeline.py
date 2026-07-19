@@ -7,7 +7,12 @@ import pytest
 
 from agents.base import BaseAgent
 from models.agent_result import AgentResult
+from models.brief import CreativeBrief
 from models.enums import AgentName, JobStatus
+from models.research import ResearchNotes
+from models.scene import Scene
+from models.script import Script
+from models.storyboard import Shot, Storyboard
 from models.workflow_state import WorkflowState
 from storage.local import LocalStorage
 from workflow.pipeline import Pipeline
@@ -38,6 +43,77 @@ class StubAgent(BaseAgent):
             agent_name=self.name, success=True, output_data={"ran": True}
         )
         return context
+
+
+class MessageFailAgent(StubAgent):
+    def __init__(self, name: AgentName, message: str) -> None:
+        super().__init__(name)
+        self.message = message
+
+    def run(self, context: WorkflowState) -> WorkflowState:
+        raise RuntimeError(self.message)
+
+
+def _context_through_storyboard(job_id: str) -> WorkflowState:
+    context = WorkflowState(job_id=job_id, prompt="creative")
+    values = {
+        AgentName.DIRECTOR: CreativeBrief(
+            title="T",
+            prompt="creative",
+            tone="clear",
+            audience="general",
+            duration_seconds=5,
+            summary="S",
+            requires_research=False,
+        ),
+        AgentName.RESEARCH: ResearchNotes(
+            brief_summary="skipped",
+            notes=[],
+            overall_confidence=0,
+        ),
+        AgentName.SCRIPT: Script(
+            title="T",
+            scenes=[
+                Scene(
+                    scene_number=1,
+                    narration="N",
+                    duration_hint=5,
+                    visual_direction="V",
+                )
+            ],
+        ),
+        AgentName.STORYBOARD: Storyboard(
+            shots=[
+                Shot(
+                    shot_number=1,
+                    scene_number=1,
+                    visual_prompt="V",
+                    camera="wide",
+                    motion="static",
+                    duration=5,
+                )
+            ]
+        ),
+    }
+    for name, value in values.items():
+        context.agent_results[name] = AgentResult(
+            agent_name=name,
+            success=True,
+            output_data=value.model_dump(mode="json"),
+        )
+    return context
+
+
+def _full_agents_with_assets(video, voice, editor) -> list[BaseAgent]:
+    return [
+        StubAgent(AgentName.DIRECTOR),
+        StubAgent(AgentName.RESEARCH),
+        StubAgent(AgentName.SCRIPT),
+        StubAgent(AgentName.STORYBOARD),
+        video,
+        voice,
+        editor,
+    ]
 
 
 class TestPipelineExecutionOrder:
@@ -144,6 +220,27 @@ class TestPipelineFailureHandling:
         result = pipeline.run("record-fail", agents, ctx)
         assert result.failed_agent == AgentName.RESEARCH
         assert "Agent research failed" in result.error
+
+    def test_pipeline_persists_parallel_success_before_failure(self, tmp_path):
+        storage = LocalStorage(str(tmp_path))
+        context = _context_through_storyboard(job_id="parallel-fail")
+        agents = _full_agents_with_assets(
+            video=MessageFailAgent(AgentName.VIDEO, "quota"),
+            voice=StubAgent(AgentName.VOICE),
+            editor=StubAgent(AgentName.EDITOR),
+        )
+
+        result = Pipeline(storage).run("parallel-fail", agents, context)
+
+        assert result.status == JobStatus.FAILED
+        assert result.failed_agent == AgentName.VIDEO
+        assert result.current_agent is None
+        assert AgentName.VOICE in result.agent_results
+        assert AgentName.EDITOR not in result.agent_results
+        saved = WorkflowState.model_validate(
+            storage.load("parallel-fail", "pipeline", "context.json")
+        )
+        assert AgentName.VOICE in saved.agent_results
 
 
 class TestPipelineEdgeCases:
