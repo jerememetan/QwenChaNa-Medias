@@ -1,4 +1,4 @@
-FROM node:22-bookworm-slim AS frontend-build
+FROM node:22-bookworm-slim@sha256:6c74791e557ce11fc957704f6d4fe134a7bc8d6f5ca4403205b2966bd488f6b3 AS frontend-build
 
 WORKDIR /build/frontend
 COPY frontend/package.json frontend/package-lock.json ./
@@ -6,7 +6,7 @@ RUN npm ci
 COPY frontend/ ./
 RUN npm run build
 
-FROM python:3.12-slim-bookworm AS runtime
+FROM python:3.12-slim-bookworm@sha256:d50fb7611f86d04a3b0471b46d7557818d88983fc3136726336b2a4c657aa30b AS runtime
 
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
@@ -15,11 +15,10 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
 WORKDIR /app
 
 RUN groupadd --gid 10001 app \
-    && useradd --uid 10001 --gid app --create-home --shell /usr/sbin/nologin app
+    && useradd --uid 10001 --gid 10001 --create-home --shell /usr/sbin/nologin app
 
-COPY requirements.txt ./
-RUN python -m pip install --upgrade pip \
-    && python -m pip install -r requirements.txt
+COPY requirements.prod.lock ./
+RUN python -m pip install --require-hashes -r requirements.prod.lock
 
 COPY agents/ ./agents/
 COPY backend/ ./backend/
@@ -30,7 +29,7 @@ COPY workflow/ ./workflow/
 COPY --from=frontend-build /build/frontend/dist ./frontend/dist
 
 RUN mkdir -p /app/outputs \
-    && chown -R app:app /app
+    && chown app:app /app/outputs
 
 USER app
 
