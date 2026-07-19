@@ -36,10 +36,13 @@ a { color: inherit; }
   border-bottom: 1px solid var(--rule); background: var(--paper-raised);
 }
 .brand-lockup { display: flex; align-items: center; gap: 12px; }
-.edition-mark {
-  width: 33px; height: 33px; display: grid; place-items: center;
-  background: var(--ink); color: var(--paper-raised); font-size: .65rem;
-  font-weight: 600; letter-spacing: .08em;
+.brand-mark {
+  width: 38px; height: 38px; display: grid; place-items: center;
+  overflow: hidden; flex: 0 0 auto; background: var(--paper-raised);
+}
+.brand-mark img {
+  width: 100%; height: 100%; display: block; object-fit: cover;
+  mix-blend-mode: multiply; transform: scale(2.15);
 }
 .wordmark { font-family: "Newsreader", serif; font-size: 1.45rem; line-height: 1; }
 .brand-caption, .eyebrow {

@@ -14,7 +14,9 @@ export function Masthead({ jobId, status }: MastheadProps) {
   return (
     <header className="masthead">
       <div className="brand-lockup">
-        <span className="edition-mark" aria-hidden="true">QC</span>
+        <span className="brand-mark" aria-hidden="true">
+          <img src="/qwenchana-ok-hand.png" alt="" />
+        </span>
         <div>
           <div className="wordmark">QwenChaNa Medias</div>
           <div className="brand-caption">Autonomous film desk</div>
