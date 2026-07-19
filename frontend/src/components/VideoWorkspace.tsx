@@ -35,6 +35,7 @@ export function VideoWorkspace({
       <div className="video-frame">
         {completed && videoUrl ? (
           <video
+            key={videoUrl}
             controls
             preload="metadata"
             title="Final generated video"
