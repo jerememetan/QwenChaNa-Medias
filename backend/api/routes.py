@@ -6,6 +6,7 @@ from pathlib import Path
 
 from fastapi import FastAPI, HTTPException
 from fastapi.responses import FileResponse
+from fastapi.staticfiles import StaticFiles
 
 from agents.base import BaseAgent
 from backend.api.schemas import (
@@ -30,6 +31,7 @@ def create_app(
     job_store: dict[str, JobRecord],
     agents: list[BaseAgent] | None = None,
     agent_factory: Callable[[], list[BaseAgent]] | None = None,
+    frontend_dist: str | Path | None = None,
 ) -> FastAPI:
     app = FastAPI()
     pipeline = Pipeline(storage) if agents else None
@@ -172,5 +174,14 @@ def create_app(
     @app.get("/health")
     def health() -> dict:
         return {"status": "ok"}
+
+    if frontend_dist is not None:
+        frontend_path = Path(frontend_dist)
+        if frontend_path.is_dir():
+            app.mount(
+                "/",
+                StaticFiles(directory=frontend_path, html=True),
+                name="frontend",
+            )
 
     return app

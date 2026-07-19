@@ -1,6 +1,7 @@
 """FastAPI application entry point with production storage and agents."""
 
 import os
+from pathlib import Path
 
 from backend.api.routes import create_app
 from backend.config import Settings
@@ -24,11 +25,13 @@ def create_production_app():
         )
 
     agents = agent_factory()
+    frontend_dist = Path(__file__).resolve().parents[1] / "frontend" / "dist"
     return create_app(
         storage=storage,
         job_store=job_store,
         agents=agents,
         agent_factory=agent_factory,
+        frontend_dist=frontend_dist,
     )
 
 

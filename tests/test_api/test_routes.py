@@ -251,6 +251,30 @@ class TestDetailsEndpoint:
         assert response.status_code == 404
         assert response.json()["detail"] == "Job context not found"
 
+
+class TestFrontendStaticServing:
+    def test_frontend_index_is_served_without_shadowing_health(self, tmp_path):
+        dist = tmp_path / "dist"
+        dist.mkdir()
+        (dist / "index.html").write_text(
+            "<h1>QwenChaNa UI</h1>",
+            encoding="utf-8",
+        )
+        app = create_app(InMemoryStorage(), {}, frontend_dist=dist)
+        client = TestClient(app)
+
+        assert client.get("/").text == "<h1>QwenChaNa UI</h1>"
+        assert client.get("/health").json() == {"status": "ok"}
+
+    def test_missing_frontend_directory_keeps_api_only_app(self, tmp_path):
+        app = create_app(
+            InMemoryStorage(),
+            {},
+            frontend_dist=tmp_path / "missing",
+        )
+
+        assert TestClient(app).get("/health").status_code == 200
+
     def test_result_returns_404_for_unknown_job(self):
         client, _, _ = _make_test_app()
         response = client.get("/result/nonexistent-id")
