@@ -8,7 +8,11 @@ services:
     env_file:
       - .env
     volumes:
-      - ./outputs:/app/outputs
+      - type: bind
+        source: ./outputs
+        target: /app/outputs
+        bind:
+          create_host_path: false
     expose:
       - "8000"
     init: true
@@ -29,6 +33,7 @@ services:
     depends_on:
       app:
         condition: service_healthy
+        restart: true
     ports:
       - "80:80"
     volumes:
