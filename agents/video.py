@@ -39,6 +39,31 @@ class VideoAgent:
             Path("outputs") / job_id / "video" / "clips" / f"shot_{shot_number:03d}.mp4"
         )
 
+    @staticmethod
+    def _is_reusable(clip: VideoClip) -> bool:
+        path = Path(clip.file_path)
+        return path.is_file() and path.stat().st_size > 0
+
+    def _load_manifest(self, job_id: str) -> dict[int, VideoClip]:
+        if self.storage is None:
+            return {}
+        data = self.storage.load(job_id, self.name.value, "video_output.json")
+        if data is None:
+            return {}
+        output = VideoOutput.model_validate(data)
+        return {clip.shot_number: clip for clip in output.clips}
+
+    def _save_manifest(self, job_id: str, clips: list[VideoClip]) -> None:
+        if self.storage is None:
+            return
+        output = VideoOutput(clips=clips)
+        self.storage.save(
+            job_id,
+            self.name.value,
+            "video_output.json",
+            output.model_dump(mode="json"),
+        )
+
     def run(self, context: WorkflowState) -> WorkflowState:
         """Generate a video clip for every shot in the storyboard.
 
@@ -59,31 +84,52 @@ class VideoAgent:
             context.agent_results[AgentName.STORYBOARD].output_data
         )
 
+        completed = self._load_manifest(context.job_id)
         clips: list[VideoClip] = []
         artifacts: list[ArtifactRef] = []
 
         for shot in storyboard.shots:
-            output_path = self._clip_path(context.job_id, shot.shot_number)
-            try:
-                generated_path = self.video_service.generate(shot.visual_prompt, output_path)
-            except Exception as exc:
-                if not self.fallback_enabled:
-                    raise RuntimeError(
-                        f"Video generation failed: {exc}. "
-                        f"Set FALLBACK_STUBS=true to generate placeholder media, "
-                        f"or configure VIDEO_API_KEY in .env."
+            existing = completed.get(shot.shot_number)
+            if existing is not None and self._is_reusable(existing):
+                clip = existing
+            else:
+                output_path = self._clip_path(context.job_id, shot.shot_number)
+                try:
+                    generated_path = self.video_service.generate(
+                        shot.visual_prompt,
+                        output_path,
+                    )
+                except Exception as exc:
+                    if not self.fallback_enabled:
+                        raise RuntimeError(
+                            f"Video generation failed: {exc}. "
+                            "Set FALLBACK_STUBS=true to generate placeholder media, "
+                            "or configure VIDEO_API_KEY in .env."
+                        ) from exc
+                    raise NotImplementedError(
+                        "Fallback stub mode not implemented for VideoAgent"
                     ) from exc
-                raise NotImplementedError(
-                    "Fallback stub mode not implemented for VideoAgent"
-                ) from exc
 
-            clips.append(
-                VideoClip(
+                clip = VideoClip(
                     shot_number=shot.shot_number,
                     file_path=generated_path,
                     duration=shot.duration,
                 )
-            )
+                if not self._is_reusable(clip):
+                    raise RuntimeError(
+                        "Video generation returned a missing or empty file: "
+                        f"{generated_path}"
+                    )
+                completed[shot.shot_number] = clip
+                ordered_partial = [
+                    completed[item.shot_number]
+                    for item in storyboard.shots
+                    if item.shot_number in completed
+                    and self._is_reusable(completed[item.shot_number])
+                ]
+                self._save_manifest(context.job_id, ordered_partial)
+
+            clips.append(clip)
             artifacts.append(
                 ArtifactRef(
                     agent_name=self.name,
@@ -94,13 +140,7 @@ class VideoAgent:
 
         video_output = VideoOutput(clips=clips)
 
-        if self.storage is not None:
-            self.storage.save(
-                context.job_id,
-                self.name.value,
-                "video_output.json",
-                video_output.model_dump(mode="json"),
-            )
+        self._save_manifest(context.job_id, clips)
 
         context.agent_results[self.name] = AgentResult(
             agent_name=self.name,
