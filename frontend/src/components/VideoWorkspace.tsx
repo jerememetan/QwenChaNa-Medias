@@ -34,7 +34,12 @@ export function VideoWorkspace({
       </div>
       <div className="video-frame">
         {completed && videoUrl ? (
-          <video controls preload="metadata" onError={onPlaybackError}>
+          <video
+            controls
+            preload="metadata"
+            title="Final generated video"
+            onError={onPlaybackError}
+          >
             <source src={videoUrl} type="video/mp4" />
             Your browser does not support MP4 playback.
           </video>
