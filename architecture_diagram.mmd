@@ -1,0 +1,57 @@
+flowchart LR
+    user["Judge / Creator"]
+
+    subgraph ecs["Alibaba Cloud ECS · Singapore"]
+        nginx["Nginx<br/>Public HTTP :80"]
+        web["FastAPI + React<br/>Single Uvicorn worker"]
+        langraph["LangGraph Showrunner"]
+
+        subgraph agents["Seven-Agent Production Team"]
+            director["Director"]
+            research["Research"]
+            script["Script"]
+            storyboard["Storyboard"]
+            video["Video"]
+            voice["Voice"]
+            editor["Editor + FFmpeg"]
+        end
+
+        outputs[("Persistent Outputs<br/>JSON · Clips · Audio · MP4")]
+    end
+
+    subgraph modelstudio["Alibaba Cloud Model Studio · Singapore"]
+        qwen["Qwen<br/>Reasoning + Narrative"]
+        wan["Wan<br/>Video Generation"]
+        cosy["CosyVoice<br/>Narration"]
+    end
+
+    user -->|"Prompt / Review / Download"| nginx
+    nginx -->|"Private Docker network"| web
+    web --> langraph
+    langraph --> director --> research --> script --> storyboard
+    storyboard --> video
+    storyboard --> voice
+    video --> editor
+    voice --> editor
+    director -.-> qwen
+    research -.-> qwen
+    script -.-> qwen
+    storyboard -.-> qwen
+    video -.-> wan
+    voice -.-> cosy
+    editor --> outputs
+    outputs -->|"Final MP4 + artifacts"| web
+
+    classDef person fill:#111827,color:#ffffff,stroke:#111827,stroke-width:2px;
+    classDef edge fill:#fff7ed,color:#9a3412,stroke:#f97316,stroke-width:2px;
+    classDef app fill:#eff6ff,color:#1e3a8a,stroke:#3b82f6,stroke-width:2px;
+    classDef agent fill:#f5f3ff,color:#5b21b6,stroke:#8b5cf6;
+    classDef model fill:#ecfdf5,color:#065f46,stroke:#10b981,stroke-width:2px;
+    classDef data fill:#fefce8,color:#854d0e,stroke:#eab308,stroke-width:2px;
+
+    class user person;
+    class nginx edge;
+    class web,langraph app;
+    class director,research,script,storyboard,video,voice,editor agent;
+    class qwen,wan,cosy model;
+    class outputs data;
