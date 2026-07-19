@@ -186,6 +186,71 @@ class TestResultEndpoint:
 
         assert response.status_code == 404
 
+
+class TestDetailsEndpoint:
+    def test_details_returns_persisted_agent_outputs(self):
+        storage = InMemoryStorage()
+        context = WorkflowState(
+            job_id="details-job",
+            prompt="Make a voxel video",
+            status=JobStatus.FAILED,
+            failed_agent=AgentName.VIDEO,
+            error="video quota",
+        )
+        context.agent_results[AgentName.DIRECTOR] = AgentResult(
+            agent_name=AgentName.DIRECTOR,
+            success=True,
+            output_data={"title": "Voxel"},
+        )
+        storage.save(
+            "details-job",
+            "pipeline",
+            "context.json",
+            context.model_dump(mode="json"),
+        )
+        job_store = {
+            "details-job": JobRecord(
+                job_id="details-job",
+                prompt="Make a voxel video",
+                status=JobStatus.FAILED,
+                failed_agent=AgentName.VIDEO,
+                error="video quota",
+            )
+        }
+        client = TestClient(create_app(storage, job_store))
+
+        response = client.get("/details/details-job")
+
+        assert response.status_code == 200
+        body = response.json()
+        assert body["failed_agent"] == "video"
+        assert body["error"] == "video quota"
+        assert body["agent_results"]["director"]["output_data"] == {
+            "title": "Voxel"
+        }
+
+    def test_details_returns_404_for_unknown_job(self):
+        client, _, _ = _make_test_app()
+
+        response = client.get("/details/missing")
+
+        assert response.status_code == 404
+
+    def test_details_returns_404_when_context_is_missing(self):
+        storage = InMemoryStorage()
+        job_store = {
+            "missing-context": JobRecord(
+                job_id="missing-context",
+                prompt="test",
+            )
+        }
+        client = TestClient(create_app(storage, job_store))
+
+        response = client.get("/details/missing-context")
+
+        assert response.status_code == 404
+        assert response.json()["detail"] == "Job context not found"
+
     def test_result_returns_404_for_unknown_job(self):
         client, _, _ = _make_test_app()
         response = client.get("/result/nonexistent-id")

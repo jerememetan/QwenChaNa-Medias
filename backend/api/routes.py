@@ -11,6 +11,7 @@ from agents.base import BaseAgent
 from backend.api.schemas import (
     GenerateRequest,
     GenerateResponse,
+    JobDetailsResponse,
     ResumeResponse,
     ResultResponse,
     StatusResponse,
@@ -93,6 +94,25 @@ def create_app(
             error=error,
             created_at=record.created_at,
             updated_at=record.updated_at,
+        )
+
+    @app.get("/details/{job_id}", response_model=JobDetailsResponse)
+    def details(job_id: str) -> JobDetailsResponse:
+        record = job_store.get(job_id)
+        if record is None:
+            raise HTTPException(status_code=404, detail="Job not found")
+        context_data = storage.load(job_id, "pipeline", "context.json")
+        if context_data is None:
+            raise HTTPException(status_code=404, detail="Job context not found")
+        context = WorkflowState.model_validate(context_data)
+        return JobDetailsResponse(
+            job_id=context.job_id,
+            prompt=context.prompt,
+            status=context.status,
+            current_agent=context.current_agent,
+            failed_agent=context.failed_agent,
+            error=context.error,
+            agent_results=context.agent_results,
         )
 
     @app.get("/result/{job_id}", response_model=ResultResponse)
