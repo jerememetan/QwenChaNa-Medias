@@ -13,9 +13,15 @@ from agents.script import ScriptAgent
 from agents.storyboard import StoryboardAgent
 from agents.video import VideoAgent
 from agents.voice import VoiceAgent
+from models.agent_result import AgentResult
+from models.brief import CreativeBrief
 from models.editor import EditorOutput
 from models.enums import AgentName, JobStatus
-from models.storyboard import Storyboard
+from models.research import ResearchNotes
+from models.scene import Scene
+from models.script import Script
+from models.storyboard import Shot, Storyboard
+from models.video import VideoOutput
 from models.workflow_state import WorkflowState
 from storage.local import LocalStorage
 from tools.ffmpeg import LocalFFmpegService
@@ -23,6 +29,7 @@ from tools.llm import LLMService
 from tools.tts import TTSService
 from tools.video_gen import VideoGenService
 from workflow.pipeline import Pipeline
+from workflow.resume import resume_job
 
 
 class LocalVideoService(VideoGenService):
@@ -57,6 +64,20 @@ class LocalVideoService(VideoGenService):
         return str(path)
 
 
+class SelectiveLocalVideoService(LocalVideoService):
+    def __init__(self, executable: str, fail_name: str | None = None):
+        super().__init__(executable)
+        self.fail_name = fail_name
+        self.attempted: list[str] = []
+
+    def generate(self, prompt: str, output_path: str) -> str:
+        name = Path(output_path).name
+        self.attempted.append(name)
+        if name == self.fail_name:
+            raise RuntimeError("video quota exhausted")
+        return super().generate(prompt, output_path)
+
+
 class LocalTTSService(TTSService):
     """Generate a tiny tone track without network access."""
 
@@ -83,6 +104,59 @@ class LocalTTSService(TTSService):
             text=True,
         )
         return str(path)
+
+
+def _asset_resume_context() -> WorkflowState:
+    context = WorkflowState(job_id="asset-resume", prompt="two shots")
+    values = {
+        AgentName.DIRECTOR: CreativeBrief(
+            title="T",
+            prompt="two shots",
+            tone="clear",
+            audience="general",
+            duration_seconds=5,
+            summary="S",
+            requested_scene_count=1,
+            requested_shot_count=2,
+            requires_research=False,
+        ),
+        AgentName.RESEARCH: ResearchNotes(
+            brief_summary="skipped",
+            notes=[],
+            overall_confidence=0,
+        ),
+        AgentName.SCRIPT: Script(
+            title="T",
+            scenes=[
+                Scene(
+                    scene_number=1,
+                    narration="One short sentence.",
+                    duration_hint=5,
+                    visual_direction="Two blue shots",
+                )
+            ],
+        ),
+        AgentName.STORYBOARD: Storyboard(
+            shots=[
+                Shot(
+                    shot_number=number,
+                    scene_number=1,
+                    visual_prompt=f"Blue shot {number}",
+                    camera="wide",
+                    motion="static",
+                    duration=2.5,
+                )
+                for number in (1, 2)
+            ]
+        ),
+    }
+    for name, value in values.items():
+        context.agent_results[name] = AgentResult(
+            agent_name=name,
+            success=True,
+            output_data=value.model_dump(mode="json"),
+        )
+    return context
 
 
 def test_prompt_runs_all_seven_agents_and_produces_mp4(tmp_path, monkeypatch):
@@ -134,7 +208,7 @@ def test_prompt_runs_all_seven_agents_and_produces_mp4(tmp_path, monkeypatch):
     result = Pipeline(storage).run("e2e-job", agents, state)
 
     assert result.status == JobStatus.COMPLETED
-    assert list(result.agent_results) == [
+    assert set(result.agent_results) == {
         AgentName.DIRECTOR,
         AgentName.RESEARCH,
         AgentName.SCRIPT,
@@ -142,7 +216,7 @@ def test_prompt_runs_all_seven_agents_and_produces_mp4(tmp_path, monkeypatch):
         AgentName.VIDEO,
         AgentName.VOICE,
         AgentName.EDITOR,
-    ]
+    }
     editor = EditorOutput.model_validate(
         result.agent_results[AgentName.EDITOR].output_data
     )
@@ -151,6 +225,10 @@ def test_prompt_runs_all_seven_agents_and_produces_mp4(tmp_path, monkeypatch):
     assert final_path.stat().st_size > 1_000
     assert llm.generate.call_count == 3
     assert len(video_service.calls) == 1
+    research = ResearchNotes.model_validate(
+        result.agent_results[AgentName.RESEARCH].output_data
+    )
+    assert research.notes == []
     storyboard = Storyboard.model_validate(
         result.agent_results[AgentName.STORYBOARD].output_data
     )
@@ -204,3 +282,57 @@ def test_storyboard_constraint_failure_stops_before_video(tmp_path):
     assert result.failed_agent == AgentName.STORYBOARD
     video_service.generate.assert_not_called()
     assert AgentName.VIDEO not in result.agent_results
+
+
+def test_partial_asset_job_resumes_only_missing_video(tmp_path, monkeypatch):
+    monkeypatch.chdir(tmp_path)
+    output_root = Path("outputs")
+    storage = LocalStorage(str(output_root))
+    executable = imageio_ffmpeg.get_ffmpeg_exe()
+    llm = MagicMock(spec=LLMService)
+
+    def agents(video_service):
+        return [
+            DirectorAgent(llm, storage),
+            ResearchAgent(llm, storage),
+            ScriptAgent(llm, storage),
+            StoryboardAgent(llm, storage),
+            VideoAgent(video_service, storage),
+            VoiceAgent(LocalTTSService(executable), storage),
+            EditorAgent(
+                LocalFFmpegService(executable),
+                storage,
+                output_root,
+            ),
+        ]
+
+    first_video = SelectiveLocalVideoService(
+        executable,
+        fail_name="shot_002.mp4",
+    )
+    failed = Pipeline(storage).run(
+        "asset-resume",
+        agents(first_video),
+        _asset_resume_context(),
+    )
+
+    assert failed.status == JobStatus.FAILED
+    assert AgentName.VOICE in failed.agent_results
+    partial = VideoOutput.model_validate(
+        storage.load("asset-resume", "video", "video_output.json")
+    )
+    assert [clip.shot_number for clip in partial.clips] == [1]
+
+    resumed_video = SelectiveLocalVideoService(executable)
+    resumed = resume_job(
+        "asset-resume",
+        agents(resumed_video),
+        storage,
+    )
+
+    assert resumed.status == JobStatus.COMPLETED
+    assert resumed_video.attempted == ["shot_002.mp4"]
+    final_path = Path(
+        resumed.agent_results[AgentName.EDITOR].output_data["final_path"]
+    )
+    assert final_path.is_file()

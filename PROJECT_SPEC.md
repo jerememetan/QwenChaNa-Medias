@@ -310,10 +310,12 @@ qwenchana-medias/
 
 ### Phase 5 — LangGraph Migration (Week 5+)
 
-- [ ] Model the pipeline as a LangGraph state graph.
-- [ ] Migrate sequential orchestrator to LangGraph nodes.
-- [ ] Add conditional edges (e.g., retry on failure, approval gates).
-- [ ] Enable parallel execution of Video + Voice agents.
+- [x] Model the pipeline as a LangGraph state graph.
+- [x] Migrate sequential orchestrator to LangGraph nodes.
+- [x] Add quota-safe conditional routing and manual-resume failure handling.
+- [x] Enable parallel execution of Video + Voice agents.
+- [x] Persist individual Video/Voice assets for quota-safe resume.
+- [x] Reload provider configuration when resuming a job.
 
 ---
 

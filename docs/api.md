@@ -32,6 +32,11 @@ Loads persisted context, skips successful agents, executes remaining agents,
 and updates job status. Running or completed jobs return `409`; an app created
 without configured agents returns `503`.
 
+The resume request rereads `.env`, rebuilds provider clients, skips completed
+agents and valid per-asset manifest entries, then runs only missing work. This
+allows model or API-key changes without restarting the API. Paid providers are
+never retried automatically.
+
 ## `GET /health`
 
 Returns `{"status": "ok"}`.
