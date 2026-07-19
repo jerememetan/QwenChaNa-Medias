@@ -54,4 +54,52 @@ describe("App generation", () => {
       expect(screen.getByTitle("Final generated video")).toBeInTheDocument()
     })
   })
+
+  it("resumes a failed job and refreshes the final result", async () => {
+    const failed: JobDetailsResponse = {
+      ...completed,
+      status: "failed",
+      failed_agent: "video",
+      error: "video quota",
+      agent_results: {},
+    }
+    vi.mocked(api.generateJob).mockResolvedValue({ job_id: "job-1" })
+    vi.mocked(api.getJobDetails)
+      .mockResolvedValueOnce(failed)
+      .mockResolvedValueOnce(completed)
+    vi.mocked(api.resumeJob).mockResolvedValue({ job_id: "job-1" })
+    vi.mocked(api.getJobResult).mockResolvedValue({
+      job_id: "job-1",
+      status: "completed",
+      output_path: "final.mp4",
+      download_url: "/result/job-1/download",
+      artifacts: [],
+    })
+    render(<App />)
+    fireEvent.change(screen.getByLabelText("Production prompt"), {
+      target: { value: "Voxel reveal" },
+    })
+    fireEvent.click(screen.getByRole("button", { name: "Begin production" }))
+
+    expect(await screen.findByText("video quota")).toBeInTheDocument()
+    fireEvent.click(screen.getByRole("button", { name: "Resume production" }))
+
+    expect(await screen.findByText("Final cut ready")).toBeInTheDocument()
+    expect(api.resumeJob).toHaveBeenCalledWith("job-1")
+    expect(api.getJobDetails).toHaveBeenCalledTimes(2)
+  })
+
+  it("keeps the prompt when generation is rejected", async () => {
+    vi.mocked(api.generateJob).mockRejectedValue(
+      new Error("prompt must not be empty"),
+    )
+    render(<App />)
+    const prompt = screen.getByLabelText("Production prompt")
+    fireEvent.change(prompt, { target: { value: "Keep this brief" } })
+
+    fireEvent.click(screen.getByRole("button", { name: "Begin production" }))
+
+    expect(await screen.findByText("prompt must not be empty")).toBeInTheDocument()
+    expect(prompt).toHaveValue("Keep this brief")
+  })
 })

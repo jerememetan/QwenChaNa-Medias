@@ -25,8 +25,16 @@ export function PromptComposer({
     <section className="prompt-composer" aria-labelledby="brief-heading">
       <div className="prompt-copy">
         <span className="eyebrow">Production brief</span>
-        <h2 id="brief-heading">What should we make?</h2>
-        <p>One clear subject, visual direction, and mood is enough.</p>
+        <h2 id="brief-heading">
+          {mode === "resume" ? "Production paused" : "What should we make?"}
+        </h2>
+        <p>
+          {mode === "resume"
+            ? "Completed assets will be reused. Update model settings, then continue from the failed stage."
+            : mode === "new"
+              ? "The final cut is ready. Start a fresh production when you are done reviewing it."
+              : "One clear subject, visual direction, and mood is enough."}
+        </p>
       </div>
       <div className="prompt-field">
         <label className="sr-only" htmlFor="production-prompt">Production prompt</label>

@@ -1,6 +1,6 @@
 import { useState } from "react"
 
-import { generateJob, getJobDetails, getJobResult } from "./api"
+import { generateJob, getJobDetails, getJobResult, resumeJob } from "./api"
 import { ContactSheet } from "./components/ContactSheet"
 import { Masthead } from "./components/Masthead"
 import { ProductionLedger } from "./components/ProductionLedger"
@@ -45,6 +45,28 @@ export default function App() {
     }
   }
 
+  async function handleResume() {
+    if (!jobId) return
+    setRunning(true)
+    setError(null)
+    try {
+      await resumeJob(jobId)
+      await refresh(jobId)
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : "Unable to resume production.")
+    } finally {
+      setRunning(false)
+    }
+  }
+
+  function handleNewProduction() {
+    setJobId(null)
+    setDetails(null)
+    setResult(null)
+    setError(null)
+    setPlaybackError(false)
+  }
+
   const status = running
     ? "running"
     : details?.status === "completed"
@@ -52,6 +74,17 @@ export default function App() {
       : details?.status === "failed"
         ? "failed"
         : "idle"
+  const composerMode = details?.status === "failed"
+    ? "resume"
+    : result
+      ? "new"
+      : "generate"
+  const handleSubmit = composerMode === "resume"
+    ? handleResume
+    : composerMode === "new"
+      ? handleNewProduction
+      : handleGenerate
+  const visibleError = error || (details?.status === "failed" ? details.error : null)
 
   return (
     <div className="app-shell">
@@ -76,11 +109,11 @@ export default function App() {
         </aside>
         <PromptComposer
           prompt={prompt}
-          mode="generate"
+          mode={composerMode}
           disabled={running}
-          error={error}
+          error={visibleError}
           onPromptChange={setPrompt}
-          onSubmit={handleGenerate}
+          onSubmit={handleSubmit}
         />
         <p className="sr-only" aria-live="polite">
           {running ? "Production running" : "Production idle"}
