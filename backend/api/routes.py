@@ -6,7 +6,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from threading import Lock
 
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Path as PathParam
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 
@@ -22,6 +22,7 @@ from backend.api.schemas import (
 from models.editor import EditorOutput
 from models.enums import AgentName, JobStatus
 from models.job import JobRecord
+from models.video import VideoOutput
 from models.workflow_state import WorkflowState
 from storage.base import StorageBackend
 from workflow.pipeline import Pipeline
@@ -138,6 +139,40 @@ def create_app(
             output_path=editor_output.final_path,
             download_url=f"/result/{job_id}/download",
             artifacts=artifacts,
+        )
+
+    @app.get("/result/{job_id}/clips/{shot_number}")
+    def download_clip(
+        job_id: str,
+        shot_number: int = PathParam(ge=1),
+    ) -> FileResponse:
+        if job_id not in job_store:
+            raise HTTPException(status_code=404, detail="Job not found")
+        context_data = storage.load(job_id, "pipeline", "context.json")
+        if context_data is None:
+            raise HTTPException(status_code=404, detail="Job context not found")
+        context = WorkflowState.model_validate(context_data)
+        video_result = context.agent_results.get(AgentName.VIDEO)
+        if video_result is None or not video_result.success:
+            raise HTTPException(status_code=404, detail="Video clip not found")
+        video = VideoOutput.model_validate(video_result.output_data)
+        clip = next(
+            (item for item in video.clips if item.shot_number == shot_number),
+            None,
+        )
+        if clip is None:
+            raise HTTPException(status_code=404, detail="Video clip not found")
+        clip_path = Path(clip.file_path)
+        if not clip_path.is_file():
+            raise HTTPException(
+                status_code=404,
+                detail="Video clip file not found",
+            )
+        return FileResponse(
+            path=clip_path,
+            media_type="video/mp4",
+            filename=f"shot-{shot_number:02d}.mp4",
+            content_disposition_type="inline",
         )
 
     @app.get("/result/{job_id}/download")

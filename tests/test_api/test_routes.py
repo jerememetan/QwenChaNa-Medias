@@ -17,6 +17,7 @@ from models.agent_result import AgentResult, ArtifactRef
 from models.editor import EditorOutput
 from models.enums import AgentName, JobStatus
 from models.job import JobRecord
+from models.video import VideoClip, VideoOutput
 from models.workflow_state import WorkflowState
 from storage.base import StorageBackend
 from tools.llm import LLMService
@@ -87,6 +88,39 @@ def _complete_with_editor_result(client, storage, job_store, tmp_path):
     )
     job_store[job_id].status = JobStatus.COMPLETED
     return job_id, final_path
+
+
+def _job_with_video_result(storage, job_store, tmp_path, *, file_exists=True):
+    job_id = "clip-job"
+    clip_path = tmp_path / job_id / "video" / "shot-01.mp4"
+    if file_exists:
+        clip_path.parent.mkdir(parents=True, exist_ok=True)
+        clip_path.write_bytes(b"shot-mp4")
+    output = VideoOutput(
+        clips=[VideoClip(shot_number=1, file_path=str(clip_path), duration=5.0)]
+    )
+    context = WorkflowState(
+        job_id=job_id,
+        prompt="test video",
+        status=JobStatus.COMPLETED,
+    )
+    context.agent_results[AgentName.VIDEO] = AgentResult(
+        agent_name=AgentName.VIDEO,
+        success=True,
+        output_data=output.model_dump(mode="json"),
+    )
+    storage.save(
+        job_id,
+        "pipeline",
+        "context.json",
+        context.model_dump(mode="json"),
+    )
+    job_store[job_id] = JobRecord(
+        job_id=job_id,
+        prompt="test video",
+        status=JobStatus.COMPLETED,
+    )
+    return job_id, clip_path
 
 
 class TestGenerateEndpoint:
@@ -185,6 +219,90 @@ class TestResultEndpoint:
         response = client.get(f"/result/{job_id}/download")
 
         assert response.status_code == 404
+
+
+class TestClipEndpoint:
+    def test_clip_returns_generated_shot_mp4(self, tmp_path):
+        client, storage, job_store = _make_test_app()
+        job_id, _ = _job_with_video_result(
+            storage,
+            job_store,
+            tmp_path,
+        )
+
+        response = client.get(f"/result/{job_id}/clips/1")
+
+        assert response.status_code == 200
+        assert response.headers["content-type"].startswith("video/mp4")
+        assert response.headers["content-disposition"].startswith("inline;")
+        assert response.headers["content-disposition"].endswith(
+            'filename="shot-01.mp4"'
+        )
+        assert response.content == b"shot-mp4"
+
+    def test_clip_returns_404_for_unknown_job(self):
+        client, _, _ = _make_test_app()
+
+        response = client.get("/result/missing/clips/1")
+
+        assert response.status_code == 404
+        assert response.json()["detail"] == "Job not found"
+
+    def test_clip_returns_404_when_context_is_missing(self):
+        client, _, job_store = _make_test_app()
+        job_store["missing-context"] = JobRecord(
+            job_id="missing-context",
+            prompt="test video",
+        )
+
+        response = client.get("/result/missing-context/clips/1")
+
+        assert response.status_code == 404
+        assert response.json()["detail"] == "Job context not found"
+
+    def test_clip_returns_404_without_video_result(self):
+        client, storage, job_store = _make_test_app()
+        job_id = "no-video"
+        context = WorkflowState(job_id=job_id, prompt="test video")
+        storage.save(
+            job_id,
+            "pipeline",
+            "context.json",
+            context.model_dump(mode="json"),
+        )
+        job_store[job_id] = JobRecord(job_id=job_id, prompt="test video")
+
+        response = client.get(f"/result/{job_id}/clips/1")
+
+        assert response.status_code == 404
+        assert response.json()["detail"] == "Video clip not found"
+
+    def test_clip_returns_404_for_unknown_shot(self, tmp_path):
+        client, storage, job_store = _make_test_app()
+        job_id, _ = _job_with_video_result(
+            storage,
+            job_store,
+            tmp_path,
+        )
+
+        response = client.get(f"/result/{job_id}/clips/2")
+
+        assert response.status_code == 404
+        assert response.json()["detail"] == "Video clip not found"
+
+    def test_clip_returns_404_when_file_is_missing(self, tmp_path):
+        client, storage, job_store = _make_test_app()
+        job_id, _ = _job_with_video_result(
+            storage,
+            job_store,
+            tmp_path,
+            file_exists=False,
+        )
+
+        response = client.get(f"/result/{job_id}/clips/1")
+
+        assert response.status_code == 404
+        assert response.json()["detail"] == "Video clip file not found"
 
 
 class TestDetailsEndpoint:

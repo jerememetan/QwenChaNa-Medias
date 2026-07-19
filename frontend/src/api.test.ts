@@ -1,6 +1,12 @@
 import { afterEach, describe, expect, it, vi } from "vitest"
 
-import { ApiError, generateJob, getJobDetails, resultDownloadUrl } from "./api"
+import {
+  ApiError,
+  clipVideoUrl,
+  generateJob,
+  getJobDetails,
+  resultDownloadUrl,
+} from "./api"
 
 afterEach(() => vi.unstubAllGlobals())
 
@@ -56,6 +62,12 @@ describe("frontend API", () => {
   it("encodes final download URLs", () => {
     expect(resultDownloadUrl("job with spaces")).toBe(
       "/result/job%20with%20spaces/download",
+    )
+  })
+
+  it("encodes generated clip URLs", () => {
+    expect(clipVideoUrl("job with spaces", 3)).toBe(
+      "/result/job%20with%20spaces/clips/3",
     )
   })
 })

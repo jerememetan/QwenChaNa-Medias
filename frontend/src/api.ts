@@ -53,3 +53,7 @@ export function resumeJob(jobId: string): Promise<ResumeResponse> {
 export function resultDownloadUrl(jobId: string): string {
   return `/result/${encodeURIComponent(jobId)}/download`
 }
+
+export function clipVideoUrl(jobId: string, shotNumber: number): string {
+  return `/result/${encodeURIComponent(jobId)}/clips/${shotNumber}`
+}

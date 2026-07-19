@@ -128,9 +128,12 @@ button[data-state="failed"] .ledger-state { color: var(--vermilion); }
 .contact-frame:hover { transform: translateY(-2px); }
 .contact-image { position: relative; aspect-ratio: 16 / 7; overflow: hidden; background: var(--video-black); }
 .contact-image .idle-art { object-fit: cover; }
+.contact-image video {
+  display: block; width: 100%; height: 100%; object-fit: cover; background: var(--video-black);
+}
 .frame-number {
   position: absolute; top: 7px; left: 7px; min-width: 24px; padding: 3px 5px;
-  background: var(--paper-raised); color: var(--ink); font-size: .62rem; font-weight: 600;
+  z-index: 1; background: var(--paper-raised); color: var(--ink); font-size: .62rem; font-weight: 600;
 }
 .contact-copy { display: grid; grid-template-columns: 1fr auto; gap: 12px; padding: 8px 0; }
 .contact-copy strong { overflow: hidden; font-family: "Newsreader", serif; font-size: .86rem; font-weight: 400; text-overflow: ellipsis; white-space: nowrap; }
