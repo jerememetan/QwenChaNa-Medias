@@ -1,6 +1,7 @@
 """API routes — FastAPI endpoints for generate, status, result, resume."""
 
 import uuid
+from collections.abc import Callable
 from pathlib import Path
 
 from fastapi import FastAPI, HTTPException
@@ -27,6 +28,7 @@ def create_app(
     storage: StorageBackend,
     job_store: dict[str, JobRecord],
     agents: list[BaseAgent] | None = None,
+    agent_factory: Callable[[], list[BaseAgent]] | None = None,
 ) -> FastAPI:
     app = FastAPI()
     pipeline = Pipeline(storage) if agents else None
@@ -134,12 +136,13 @@ def create_app(
             raise HTTPException(status_code=409, detail="Job is already running")
         if record.status == JobStatus.COMPLETED:
             raise HTTPException(status_code=409, detail="Job is already completed")
-        if not agents:
+        resume_agents = agent_factory() if agent_factory is not None else agents
+        if not resume_agents:
             raise HTTPException(
                 status_code=503,
                 detail="Resume is unavailable: no agents configured",
             )
-        context = resume_job(job_id, agents, storage)
+        context = resume_job(job_id, resume_agents, storage)
         record.status = context.status
         record.updated_at = context.updated_at
         record.failed_agent = context.failed_agent

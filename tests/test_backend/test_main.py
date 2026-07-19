@@ -7,8 +7,9 @@ from models.enums import AgentName
 def test_production_app_includes_editor_as_seventh_agent(monkeypatch):
     captured = {}
 
-    def capture_app(storage, job_store, agents):
+    def capture_app(storage, job_store, agents, agent_factory):
         captured["agents"] = agents
+        captured["agent_factory"] = agent_factory
         return object()
 
     monkeypatch.setattr(main_module, "create_app", capture_app)
@@ -24,3 +25,4 @@ def test_production_app_includes_editor_as_seventh_agent(monkeypatch):
         AgentName.VOICE,
         AgentName.EDITOR,
     ]
+    assert callable(captured["agent_factory"])

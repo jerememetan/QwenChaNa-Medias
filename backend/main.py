@@ -1,59 +1,35 @@
-"""FastAPI application entry point — creates production app with default storage and agents."""
+"""FastAPI application entry point with production storage and agents."""
 
 import os
 
-from storage.local import LocalStorage
 from backend.api.routes import create_app
 from backend.config import Settings
+from backend.factory import build_production_agents
 from models.job import JobRecord
-from tools.llm import AlibabaCloudLLMService
-from tools.tts import DashScopeTTSService
-from tools.video_gen import DashScopeVideoGenService
-from agents.director import DirectorAgent
-from agents.research import ResearchAgent
-from agents.script import ScriptAgent
-from agents.storyboard import StoryboardAgent
-from agents.video import VideoAgent
-from agents.voice import VoiceAgent
-from agents.editor import EditorAgent
-from tools.ffmpeg import LocalFFmpegService
+from storage.local import LocalStorage
 
 
 def create_production_app():
-    settings = Settings()
-    storage = LocalStorage(settings.storage.output_dir)
+    initial_settings = Settings()
+    storage = LocalStorage(initial_settings.storage.output_dir)
     job_store: dict[str, JobRecord] = {}
-
-    llm_service = AlibabaCloudLLMService(settings.llm)
-    tts_service = DashScopeTTSService(settings.voice)
-    video_service = DashScopeVideoGenService(settings.video)
-    ffmpeg_service = LocalFFmpegService()
-
     fallback_enabled = os.environ.get("FALLBACK_STUBS", "false").lower() == "true"
 
-    agents = [
-        DirectorAgent(llm_service=llm_service, storage=storage),
-        ResearchAgent(llm_service=llm_service, storage=storage),
-        ScriptAgent(llm_service=llm_service, storage=storage),
-        StoryboardAgent(llm_service=llm_service, storage=storage),
-        VideoAgent(
-            video_service=video_service,
-            storage=storage,
+    def agent_factory():
+        return build_production_agents(
+            Settings(),
+            storage,
+            output_dir=initial_settings.storage.output_dir,
             fallback_enabled=fallback_enabled,
-        ),
-        VoiceAgent(
-            tts_service=tts_service,
-            storage=storage,
-            fallback_enabled=fallback_enabled,
-        ),
-        EditorAgent(
-            ffmpeg_service=ffmpeg_service,
-            storage=storage,
-            output_dir=settings.storage.output_dir,
-        ),
-    ]
+        )
 
-    return create_app(storage=storage, job_store=job_store, agents=agents)
+    agents = agent_factory()
+    return create_app(
+        storage=storage,
+        job_store=job_store,
+        agents=agents,
+        agent_factory=agent_factory,
+    )
 
 
 app = create_production_app()

@@ -242,6 +242,27 @@ class TestResumeEndpoint:
         assert job_store[job_id].failed_agent is None
         assert job_store[job_id].error is None
 
+    def test_resume_builds_fresh_agents_from_factory(self):
+        storage = InMemoryStorage()
+        job_store: dict[str, JobRecord] = {}
+        call_order: list[AgentName] = []
+        fresh = [CompletingEditor(call_order)]
+        factory = MagicMock(return_value=fresh)
+        app = create_app(
+            storage=storage,
+            job_store=job_store,
+            agents=[FailingIfCalledEditor()],
+            agent_factory=factory,
+        )
+        client = TestClient(app)
+        job_id = _failed_editor_job(storage, job_store)
+
+        response = client.post(f"/resume/{job_id}")
+
+        assert response.status_code == 202
+        factory.assert_called_once_with()
+        assert call_order == [AgentName.EDITOR]
+
     def test_resume_returns_503_without_configured_agents(self):
         storage = InMemoryStorage()
         job_store: dict[str, JobRecord] = {}
@@ -298,6 +319,13 @@ class CompletingEditor(BaseAgent):
             output_data={"final_path": "final.mp4", "scene_count": 1},
         )
         return context
+
+
+class FailingIfCalledEditor(BaseAgent):
+    name = AgentName.EDITOR
+
+    def run(self, context: WorkflowState) -> WorkflowState:
+        raise AssertionError("stale agents used")
 
 
 def _failed_editor_job(storage, job_store) -> str:
